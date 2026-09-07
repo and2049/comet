@@ -39,6 +39,7 @@ async function main() {
     assert.equal(await evaluate('document.documentElement.scrollWidth <= innerWidth'), true);
     assert.equal(await evaluate('document.body.scrollHeight <= innerHeight'), true);
     assert.equal(await evaluate('document.querySelectorAll(".window-controls button").length'), process.platform === 'darwin' ? 0 : 3);
+    assert.equal(await evaluate('[...document.querySelectorAll(".window-controls button")].every(b => { const r = b.getBoundingClientRect(); return r.width === r.height; })'), true);
     assert.equal(await evaluate('document.body.textContent.includes("EARLY ACCESS") || document.body.textContent.includes("JAVA EDITION")'), false);
     await evaluate(`window.comet.invoke({ type: 'window', action: 'maximize' })`);
     assert.equal(window.isMaximized(), true);
