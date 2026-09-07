@@ -166,7 +166,8 @@ else {
   app.whenReady().then(async () => {
     await initialize();
     window = new BrowserWindow({
-      width: 1320, height: 850, minWidth: 1000, minHeight: 700, title: 'Comet', backgroundColor: '#101114',
+      width: 1320, height: 850, minWidth: 1000, minHeight: 700, title: 'Comet',
+      ...(process.platform === 'linux' ? { transparent: true, backgroundColor: '#00000000' } : { backgroundColor: '#101114' }),
       frame: false, titleBarStyle: 'hidden', trafficLightPosition: { x: 14, y: 18 },
       webPreferences: { preload: path.join(here, 'preload.cjs'), contextIsolation: true, nodeIntegration: false, sandbox: true },
     });

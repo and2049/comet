@@ -55,7 +55,7 @@ function App(): React.JSX.Element {
   }
   function choose(instance: Instance): void { select(instance.id); }
   const filtered = state.instances.filter(i => (filter === 'all' || i.profile === filter) && `${i.name} ${i.version}`.toLowerCase().includes(search.toLowerCase()));
-  return <div className={`app ${state.platform}`}>
+  return <div className={`app ${state.platform} ${state.maximized ? 'maximized' : ''}`}>
     <aside className="rail">
       <div className="brand-mark" title="Comet"><Icon name="comet" /></div>
       <nav aria-label="Main navigation">
