@@ -6,7 +6,8 @@ import { randomUUID } from 'node:crypto';
 import { createInterface } from 'node:readline';
 import { defaults, instances, prismFiles, record, redact, settingsFrom, text } from './core.js';
 import { login, refresh, sessionFrom, type Session } from './auth.js';
-import { gameDirectory, install, launchGame, verifyJava } from './minecraft.js';
+import { gameDirectory, install, installRuntime, launchGame, verifyJava } from './minecraft.js';
+import { withFabric } from './fabric.js';
 import type { Snapshot } from '../shared.js';
 
 app.setName('Comet');
@@ -82,7 +83,7 @@ async function command(input: unknown): Promise<Snapshot> {
       await verifyJava(next.javaPath);
       await atomic(path.join(root, 'settings.json'), JSON.stringify(next, null, 2));
       state.settings = next;
-      status('64-bit Java 8 verified');
+      status('64-bit Java 8 override saved');
     }
     return publish();
   }
@@ -115,16 +116,17 @@ async function command(input: unknown): Promise<Snapshot> {
       await saveSession(next);
       status(`Signed in as ${next.account.name}`);
     } else if (instance) {
-      if (type === 'launch') {
-        if (!session || session.clientId !== state.settings.clientId) throw new Error('Sign in with Microsoft before launching.');
-        await verifyJava(state.settings.javaPath);
+      if (type === 'launch' && (!session || session.clientId !== state.settings.clientId)) throw new Error('Sign in with Microsoft before launching.');
+      let installation = await install(root, instance, status);
+      if (instance.profile === 'mcsr') installation = await withFabric(root, instance, installation, status);
+      const major = installation.metadata.javaVersion?.majorVersion ?? 8;
+      const java = state.settings.javaPath || await installRuntime(root, installation.metadata.javaVersion, status);
+      await verifyJava(java, major);
+      if (type === 'launch' && session) {
         status('Refreshing Minecraft session');
         await saveSession(await refresh(session));
-      }
-      const installation = await install(root, instance, status);
-      if (type === 'launch' && session) {
         const secrets = [session.accessToken, session.refreshToken];
-        const child = launchGame(installation, state.settings, session);
+        const child = launchGame(installation, state.settings, session, java);
         await new Promise<void>((resolve, reject) => { child.once('spawn', resolve); child.once('error', reject); });
         state.running = instance.id;
         state.logs = [];

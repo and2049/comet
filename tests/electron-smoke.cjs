@@ -14,6 +14,7 @@ async function main() {
   const created = new Promise(resolve => app.once('browser-window-created', (_event, window) => resolve(window)));
   await import('../dist/main/main.js');
   const window = await created;
+  window.webContents.setBackgroundThrottling(false);
   const errors = [];
   window.webContents.on('console-message', (_event, level, message) => { if (level >= 3) errors.push(message); });
   await new Promise(resolve => window.webContents.once('did-finish-load', resolve));

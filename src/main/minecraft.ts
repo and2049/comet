@@ -4,7 +4,7 @@ import { copyFile, mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
 import { allowed, expand, inside, type Argument, type Rule } from './core.js';
-import { download, json, officialUrl, type Download } from './net.js';
+import { download, json, officialUrl, parallel, type Download } from './net.js';
 import type { Instance, Settings } from '../shared.js';
 import type { Session } from './auth.js';
 
@@ -25,6 +25,7 @@ interface Metadata {
   minecraftArguments?: string;
   arguments?: { jvm: Argument[]; game: Argument[] };
   logging?: { client: { argument: string; file: Download & { id: string } } };
+  javaVersion?: { component: string; majorVersion: number };
 }
 interface AssetIndex {
   objects: Record<string, { hash: string; size: number }>;
@@ -35,7 +36,7 @@ export interface Installation { metadata: Metadata; classpath: string[]; natives
 export function gameDirectory(root: string, instance: Instance): string {
   return path.join(root, 'instances', instance.id, '.minecraft');
 }
-async function extractNative(archive: string, destination: string): Promise<void> {
+export async function extractZip(archive: string, destination: string): Promise<void> {
   const script = `
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.IO.Compression.FileSystem
@@ -92,7 +93,7 @@ export async function install(root: string, instance: Instance, report: (message
       if (!native) throw new Error(`Missing Windows natives: ${library.name}`);
       const destination = inside(path.join(root, 'cache', 'libraries'), native.path ?? '');
       await download(native, destination);
-      await extractNative(destination, natives);
+      await extractZip(destination, natives);
     }
   }
   classpath.push(client);
@@ -101,30 +102,21 @@ export async function install(root: string, instance: Instance, report: (message
   const index = JSON.parse(await readFile(indexFile, 'utf8')) as AssetIndex;
   const entries = Object.entries(index.objects);
   const gameAssets = index.virtual ? inside(path.join(assets, 'virtual'), metadata.assetIndex.id) : assets;
-  let next = 0;
   let done = 0;
-  let failed = false;
-  const workers = await Promise.allSettled(Array.from({ length: 12 }, async () => {
-    try {
-    while (!failed && next < entries.length) {
-      const [name, asset] = entries[next++];
-      if (!/^[a-f0-9]{40}$/.test(asset.hash)) throw new Error('Invalid asset hash.');
-      const relative = `${asset.hash.slice(0, 2)}/${asset.hash}`;
-      const destination = inside(path.join(assets, 'objects'), relative);
-      await download({ url: officialUrl(`https://resources.download.minecraft.net/${relative}`), sha1: asset.hash, size: asset.size }, destination);
-      for (const mapping of [index.virtual ? gameAssets : null, index.map_to_resources ? path.join(game, 'resources') : null]) {
-        if (!mapping) continue;
-        const mapped = inside(mapping, name);
-        await mkdir(path.dirname(mapped), { recursive: true });
-        await copyFile(destination, mapped);
-      }
-      done++;
-      if (done % 25 === 0 || done === entries.length) report(`Verifying assets ${done} / ${entries.length}`);
+  await parallel(entries, 12, async ([name, asset]) => {
+    if (!/^[a-f0-9]{40}$/.test(asset.hash)) throw new Error('Invalid asset hash.');
+    const relative = `${asset.hash.slice(0, 2)}/${asset.hash}`;
+    const destination = inside(path.join(assets, 'objects'), relative);
+    await download({ url: officialUrl(`https://resources.download.minecraft.net/${relative}`), sha1: asset.hash, size: asset.size }, destination);
+    for (const mapping of [index.virtual ? gameAssets : null, index.map_to_resources ? path.join(game, 'resources') : null]) {
+      if (!mapping) continue;
+      const mapped = inside(mapping, name);
+      await mkdir(path.dirname(mapped), { recursive: true });
+      await copyFile(destination, mapped);
     }
-    } catch (error) { failed = true; throw error; }
-  }));
-  const failure = workers.find(worker => worker.status === 'rejected');
-  if (failure?.status === 'rejected') throw failure.reason;
+    done++;
+    if (done % 25 === 0 || done === entries.length) report(`Verifying assets ${done} / ${entries.length}`);
+  });
   if (metadata.logging?.client) {
     const logging = metadata.logging.client;
     await download(logging.file, inside(path.join(assets, 'log_configs'), logging.file.id));
@@ -133,12 +125,46 @@ export async function install(root: string, instance: Instance, report: (message
   report(`Minecraft ${instance.version} is ready`);
   return { metadata, classpath, natives, game, assets, gameAssets };
 }
-export async function verifyJava(javaPath: string): Promise<void> {
-  if (!javaPath) throw new Error('Select a 64-bit Java 8 executable in Settings.');
+interface RuntimeManifest { files: Record<string, { type: string; downloads?: { raw: Download } }> }
+export function runtimeFiles(manifest: RuntimeManifest): { directories: string[]; files: (Download & { path: string })[] } {
+  const directories: string[] = [];
+  const files: (Download & { path: string })[] = [];
+  for (const [relative, entry] of Object.entries(manifest.files)) {
+    if (entry.type === 'directory') directories.push(relative);
+    else if (entry.type === 'file' && entry.downloads) files.push({ ...entry.downloads.raw, path: relative });
+    else throw new Error(`Unsupported runtime entry: ${relative}`);
+  }
+  return { directories, files };
+}
+export async function installRuntime(root: string, java: Metadata['javaVersion'], report: (message: string) => void): Promise<string> {
+  const component = java?.component ?? 'jre-legacy';
+  if (!/^[\w-]+$/.test(component)) throw new Error('Unexpected Java runtime component.');
+  report(`Resolving Java runtime ${component}`);
+  const all = await json('https://piston-meta.mojang.com/v1/products/java-runtime/2ec0cc96c44e5a76b9c8b7c39df7210883d12871/all.json') as Record<string, Record<string, { manifest: Download; version: { name: string } }[]>>;
+  const entry = all['windows-x64']?.[component]?.[0];
+  if (!entry) throw new Error(`Mojang does not publish ${component} for Windows x64.`);
+  const home = path.join(root, 'cache', 'runtimes', component);
+  const manifestFile = path.join(home, 'manifest.json');
+  await download(entry.manifest, manifestFile);
+  const { directories, files } = runtimeFiles(JSON.parse(await readFile(manifestFile, 'utf8')) as RuntimeManifest);
+  for (const directory of directories) await mkdir(inside(home, directory), { recursive: true });
+  let done = 0;
+  await parallel(files, 12, async file => {
+    await download(file, inside(home, file.path));
+    done++;
+    if (done % 25 === 0 || done === files.length) report(`Verifying Java runtime ${done} / ${files.length}`);
+  });
+  report(`Java runtime ${entry.version.name} is ready`);
+  return path.join(home, 'bin', 'java.exe');
+}
+export function javaMatches(output: string, major: number): boolean {
+  const version = /java\.specification\.version\s*=\s*(\S+)/.exec(output)?.[1];
+  return version === (major === 8 ? '1.8' : String(major)) && /sun\.arch\.data\.model\s*=\s*64/.test(output);
+}
+export async function verifyJava(javaPath: string, major = 8): Promise<void> {
   const executable = javaPath.replace(/javaw\.exe$/i, 'java.exe');
   const result = await exec(executable, ['-XshowSettings:properties', '-version'], { windowsHide: true, timeout: 15000 });
-  const output = result.stdout + result.stderr;
-  if (!/java\.version\s*=\s*1\.8\./.test(output) || !/sun\.arch\.data\.model\s*=\s*64/.test(output)) throw new Error('These versions require a 64-bit Java 8 runtime. Choose Java 8 in Settings.');
+  if (!javaMatches(result.stdout + result.stderr, major)) throw new Error(`This version requires a 64-bit Java ${major} runtime. Clear the Java override in Settings to use the managed runtime.`);
 }
 export function launchArguments(installation: Installation, settings: Settings, session: Session): string[] {
   const { metadata, game, assets, natives, gameAssets, classpath } = installation;
@@ -161,8 +187,8 @@ export function launchArguments(installation: Installation, settings: Settings, 
     metadata.mainClass, ...expand(gameArgs, values, os.release()),
   ];
 }
-export function launchGame(installation: Installation, settings: Settings, session: Session): ChildProcess {
-  return spawn(settings.javaPath.replace(/javaw\.exe$/i, 'java.exe'), launchArguments(installation, settings, session), {
+export function launchGame(installation: Installation, settings: Settings, session: Session, java: string): ChildProcess {
+  return spawn(java.replace(/javaw\.exe$/i, 'java.exe'), launchArguments(installation, settings, session), {
     cwd: installation.game, windowsHide: true, shell: false, stdio: ['ignore', 'pipe', 'pipe'],
   });
 }
