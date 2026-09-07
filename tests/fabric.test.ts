@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
-import { mavenPath, mergeFabric, packFiles, rawUrl, stalePaths, type PackIndex } from '../src/main/fabric';
-import { javaMatches, runtimeFiles, type Installation } from '../src/main/minecraft';
+import { mavenPath, mergeFabric, packFiles, packUrl, rawUrl, stalePaths, type PackIndex } from '../src/main/fabric';
+import { javaMatches, runtimeFiles, runtimeKeys, type Installation } from '../src/main/minecraft';
 import { parallel, trustedUrl } from '../src/main/net';
 
 const sha1 = 'a'.repeat(40);
@@ -53,11 +53,19 @@ describe('Fabric and pack resolution', () => {
   });
 });
 describe('Java runtime handling', () => {
-  test('selects raw runtime files and directories, rejecting links', () => {
+  test('selects raw runtime files, directories, links and the java executable', () => {
     const raw = { url: 'https://piston-data.mojang.com/x', sha1, size: 1 };
-    const manifest = { files: { bin: { type: 'directory' }, 'bin/java.exe': { type: 'file', downloads: { raw } }, COPYRIGHT: { type: 'file', downloads: { raw, lzma: raw } } } };
-    expect(runtimeFiles(manifest)).toEqual({ directories: ['bin'], files: [{ ...raw, path: 'bin/java.exe' }, { ...raw, path: 'COPYRIGHT' }] });
+    const manifest = { files: { bin: { type: 'directory' }, 'bin/java.exe': { type: 'file', executable: true, downloads: { raw } }, COPYRIGHT: { type: 'file', downloads: { raw, lzma: raw } } } };
+    expect(runtimeFiles(manifest)).toEqual({ directories: ['bin'], files: [{ ...raw, path: 'bin/java.exe', executable: true }, { ...raw, path: 'COPYRIGHT', executable: false }], links: [], java: 'bin/java.exe' });
+    const mac = { files: { 'jre.bundle/Contents/Home/bin/java': { type: 'file', executable: true, downloads: { raw } }, 'lib/libjsig.so': { type: 'link', target: '../libjsig.so' } } };
+    expect(runtimeFiles(mac)).toMatchObject({ links: [{ path: 'lib/libjsig.so', target: '../libjsig.so' }], java: 'jre.bundle/Contents/Home/bin/java' });
     expect(() => runtimeFiles({ files: { link: { type: 'link' } } })).toThrow('Unsupported');
+    expect(() => runtimeFiles({ files: { COPYRIGHT: { type: 'file', downloads: { raw } } } })).toThrow('no java executable');
+    expect(runtimeKeys({ os: 'windows', arch: 'x86_64', version: '' })).toEqual(['windows-x64']);
+    expect(runtimeKeys({ os: 'linux', arch: 'x86_64', version: '' })).toEqual(['linux']);
+    expect(runtimeKeys({ os: 'osx', arch: 'aarch64', version: '' })).toEqual(['mac-os-arm64', 'mac-os']);
+    expect(packUrl({ os: 'osx', arch: 'aarch64', version: '' })).toEndWith('MCSRRanked-OSX-1.16.1-RSG.mrpack');
+    expect(packUrl({ os: 'linux', arch: 'x86_64', version: '' })).toEndWith('MCSRRanked-Linux-1.16.1-RSG.mrpack');
   });
   test('checks the requested major version and 64-bit architecture', () => {
     const output = (specification: string, bits: string) => `    java.specification.version = ${specification}\n    java.version = 1.8.0_51\n    sun.arch.data.model = ${bits}\n`;

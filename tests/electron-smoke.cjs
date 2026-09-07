@@ -47,7 +47,7 @@ async function main() {
     assert.equal(await evaluate('document.querySelector("input[type=checkbox]").checked'), false);
     assert.equal(await evaluate('(async () => (await window.comet.invoke({ type: "snapshot" })).settings.memoryMb)()'), 3072);
     const loginError = await evaluate(`window.comet.invoke({ type: 'login' }).then(() => '', error => error.message)`);
-    assert.match(loginError, /approved Microsoft/);
+    assert.match(loginError, /approved Microsoft|secure storage/);
     const badInstance = await evaluate(`window.comet.invoke({ type: 'folder', id: '../../outside' }).then(() => '', error => error.message)`);
     assert.match(badInstance, /Unknown instance/);
     await click('[aria-label="console"]');

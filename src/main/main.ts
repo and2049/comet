@@ -16,6 +16,7 @@ let window: BrowserWindow;
 let root: string;
 let session: Session | null = null;
 let loginController: AbortController | null = null;
+const storageHint = process.platform === 'linux' ? 'System secure storage is unavailable. Install and unlock a keyring such as gnome-keyring or KWallet.' : 'System secure storage is unavailable.';
 const state: Snapshot = { instances, settings: defaults, account: null, running: null, busy: false, status: 'Choose an instance to get started', logs: [], deviceCode: null };
 function publish(): Snapshot {
   if (window && !window.isDestroyed()) window.webContents.send('comet:state', state);
@@ -32,7 +33,7 @@ async function atomic(file: string, contents: string | Buffer): Promise<void> {
   finally { await rm(temporary, { force: true }); }
 }
 async function saveSession(next: Session): Promise<void> {
-  if (!safeStorage.isEncryptionAvailable()) throw new Error('Windows secure storage is unavailable. Sign-in was not saved.');
+  if (!safeStorage.isEncryptionAvailable()) throw new Error(`${storageHint} Sign-in was not saved.`);
   await atomic(path.join(root, 'account.bin'), safeStorage.encryptString(JSON.stringify(next)));
   session = next;
   state.account = next.account;
@@ -77,7 +78,7 @@ async function command(input: unknown): Promise<Snapshot> {
     return state;
   }
   if (type === 'java') {
-    const result = await dialog.showOpenDialog(window, { title: 'Choose 64-bit Java 8', filters: [{ name: 'Java executable', extensions: ['exe'] }], properties: ['openFile'] });
+    const result = await dialog.showOpenDialog(window, { title: 'Choose a Java executable', filters: process.platform === 'win32' ? [{ name: 'Java executable', extensions: ['exe'] }] : [], properties: ['openFile'] });
     if (result.filePaths[0]) {
       const next = settingsFrom({ ...state.settings, javaPath: result.filePaths[0] });
       await verifyJava(next.javaPath);
@@ -106,7 +107,7 @@ async function command(input: unknown): Promise<Snapshot> {
   state.busy = true; publish();
   try {
     if (type === 'login') {
-      if (!safeStorage.isEncryptionAvailable()) throw new Error('Windows secure storage is unavailable.');
+      if (!safeStorage.isEncryptionAvailable()) throw new Error(storageHint);
       loginController = new AbortController();
       status('Waiting for Microsoft sign-in');
       const next = await login(state.settings.clientId, code => {

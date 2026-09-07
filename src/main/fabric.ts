@@ -1,12 +1,16 @@
 import { mkdtemp, readFile, rm, unlink, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
-import { inside } from './core.js';
+import { inside, platform, type Platform } from './core.js';
 import { download, fabricHosts, json, packHosts, remoteBytes, remoteText, trustedUrl, type Download } from './net.js';
-import { extractZip, gameDirectory, type Installation } from './minecraft.js';
+import { gameDirectory, type Installation } from './minecraft.js';
+import { extractZip } from './zip.js';
 import type { Instance } from '../shared.js';
 
-export const packUrl = 'https://redlime.github.io/MCSRMods/modpacks/v4/MCSRRanked-Windows-1.16.1-RSG.mrpack';
+export function packUrl(target: Platform): string {
+  const names = { windows: 'Windows', osx: 'OSX', linux: 'Linux' };
+  return `https://redlime.github.io/MCSRMods/modpacks/v4/MCSRRanked-${names[target.os]}-1.16.1-RSG.mrpack`;
+}
 export interface PackIndex {
   formatVersion: number;
   game: string;
@@ -67,7 +71,7 @@ export async function readPack(): Promise<PackIndex> {
   const staging = await mkdtemp(path.join(os.tmpdir(), 'comet-pack-'));
   try {
     const archive = path.join(staging, 'pack.mrpack');
-    await writeFile(archive, Buffer.from(await remoteBytes(trustedUrl(packUrl, packHosts))));
+    await writeFile(archive, Buffer.from(await remoteBytes(trustedUrl(packUrl(platform()), packHosts))));
     await extractZip(archive, staging);
     return JSON.parse(await readFile(path.join(staging, 'modrinth.index.json'), 'utf8')) as PackIndex;
   } finally {

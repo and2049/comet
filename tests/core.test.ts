@@ -1,6 +1,9 @@
 import { describe, expect, test } from 'bun:test';
 import path from 'node:path';
-import { allowed, defaults, expand, inside, instances, prismFiles, redact, settingsFrom } from '../src/main/core';
+import { allowed, defaults, expand, inside, instances, javaExecutable, prismFiles, redact, settingsFrom, type Platform } from '../src/main/core';
+
+const windows: Platform = { os: 'windows', arch: 'x86_64', version: '10.0' };
+const mac: Platform = { os: 'osx', arch: 'aarch64', version: '23.0' };
 import { officialUrl } from '../src/main/net';
 import { gameDirectory, launchArguments, type Installation } from '../src/main/minecraft';
 
@@ -30,7 +33,11 @@ describe('trust boundaries', () => {
   });
   test('validates settings arriving from the renderer', () => {
     expect(settingsFrom(defaults)).toEqual(defaults);
-    for (const patch of [{ memoryMb: -1 }, { memoryMb: 99999 }, { memoryMb: 2048.5 }, { clientId: 'prism' }, { javaPath: 'java.exe' }, { minimizeOnLaunch: 'yes' }]) expect(() => settingsFrom({ ...defaults, ...patch })).toThrow();
+    for (const patch of [{ memoryMb: -1 }, { memoryMb: 99999 }, { memoryMb: 2048.5 }, { clientId: 'prism' }, { javaPath: 'java.exe' }, { javaPath: '/usr/bin/javac' }, { minimizeOnLaunch: 'yes' }]) expect(() => settingsFrom({ ...defaults, ...patch })).toThrow();
+    for (const javaPath of ['C:\\Java\\bin\\javaw.exe', '/usr/lib/jvm/java-8/bin/java', '/Library/Java/Home/bin/javaw']) expect(settingsFrom({ ...defaults, javaPath }).javaPath).toBe(javaPath);
+    expect(javaExecutable('C:\\Java\\bin\\javaw.exe')).toBe('C:\\Java\\bin\\java.exe');
+    expect(javaExecutable('/opt/jre/bin/javaw')).toBe('/opt/jre/bin/java');
+    expect(javaExecutable('/opt/jre/bin/java')).toBe('/opt/jre/bin/java');
   });
   test('removes known tokens and token argument values', () => {
     expect(redact('secret-token --accessToken other-token', ['secret-token'])).toBe('[redacted] --accessToken [redacted]');
@@ -38,17 +45,23 @@ describe('trust boundaries', () => {
 });
 describe('Minecraft metadata rules', () => {
   test('ordered OS and feature rules', () => {
-    expect(allowed(undefined, '10.0')).toBe(true);
-    expect(allowed([], '10.0')).toBe(false);
-    expect(allowed([{ action: 'allow' }, { action: 'disallow', os: { name: 'osx' } }], '10.0')).toBe(true);
-    expect(allowed([{ action: 'allow', os: { name: 'linux' } }], '10.0')).toBe(false);
-    expect(allowed([{ action: 'allow', features: { is_demo_user: true } }], '10.0')).toBe(false);
-    expect(allowed([{ action: 'allow', features: { is_demo_user: false } }], '10.0')).toBe(true);
-    expect(allowed([{ action: 'allow', os: { name: 'windows', version: '^10\\.' } }], '10.0')).toBe(true);
+    expect(allowed(undefined, windows)).toBe(true);
+    expect(allowed([], windows)).toBe(false);
+    expect(allowed([{ action: 'allow' }, { action: 'disallow', os: { name: 'osx' } }], windows)).toBe(true);
+    expect(allowed([{ action: 'allow' }, { action: 'disallow', os: { name: 'osx' } }], mac)).toBe(false);
+    expect(allowed([{ action: 'allow', os: { name: 'linux' } }], windows)).toBe(false);
+    expect(allowed([{ action: 'allow', os: { name: 'osx' } }], mac)).toBe(true);
+    expect(allowed([{ action: 'allow', features: { is_demo_user: true } }], windows)).toBe(false);
+    expect(allowed([{ action: 'allow', features: { is_demo_user: false } }], windows)).toBe(true);
+    expect(allowed([{ action: 'allow', os: { name: 'windows', version: '^10\\.' } }], windows)).toBe(true);
+    expect(allowed([{ action: 'allow', os: { name: 'windows', version: '^10\\.' } }], mac)).toBe(false);
+    expect(allowed([{ action: 'allow', os: { arch: 'x86' } }], windows)).toBe(false);
+    expect(allowed([{ action: 'allow', os: { arch: 'arm64' } }], mac)).toBe(true);
   });
   test('keeps spaces within substituted arguments and excludes demo flags', () => {
-    expect(expand(['${directory}', { rules: [{ action: 'allow', features: { is_demo_user: true } }], value: '--demo' }], { directory: 'C:\\Games With Spaces' }, '10.0')).toEqual(['C:\\Games With Spaces']);
-    expect(() => expand(['${unknown}'], {}, '10.0')).toThrow();
+    expect(expand(['${directory}', { rules: [{ action: 'allow', features: { is_demo_user: true } }], value: '--demo' }], { directory: 'C:\\Games With Spaces' }, windows)).toEqual(['C:\\Games With Spaces']);
+    expect(expand([{ rules: [{ action: 'allow', os: { name: 'osx' } }], value: ['-XstartOnFirstThread'] }], {}, mac)).toEqual(['-XstartOnFirstThread']);
+    expect(() => expand(['${unknown}'], {}, windows)).toThrow();
   });
   test('builds legacy authenticated arguments without shell quoting', () => {
     const installation: Installation = {

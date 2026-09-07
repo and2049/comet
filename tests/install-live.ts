@@ -20,8 +20,8 @@ try {
     };
     let result = await install(root, instance, report);
     assert((await stat(result.classpath.at(-1)!)).size > 0);
-    assert((await readdir(result.natives)).some(name => /^lwjgl(?:64)?\.dll$/i.test(name)));
-    console.log(`${instance.version}: full client, libraries, assets, logging configuration and Windows native extraction passed`);
+    assert((await readdir(result.natives)).some(name => /^lib(?:lwjgl|jemalloc)|^lwjgl(?:64)?\.dll$/i.test(name)));
+    console.log(`${instance.version}: full client, libraries, assets, logging configuration and native extraction passed on ${process.platform}`);
     if (instance.profile === 'mcsr') {
       result = await withFabric(root, instance, result, report);
       assert(result.classpath.some(entry => /fabric-loader-[\d.]+\.jar$/.test(entry)));
