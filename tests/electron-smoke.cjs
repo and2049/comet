@@ -31,6 +31,15 @@ async function main() {
     assert.equal(await evaluate('typeof window.comet.invoke'), 'function');
     assert.equal(await evaluate('document.querySelectorAll(".instance").length'), 3);
     assert.equal(await evaluate('document.documentElement.scrollWidth <= innerWidth'), true);
+    assert.equal(await evaluate('document.body.scrollHeight <= innerHeight'), true);
+    assert.equal(await evaluate('document.querySelectorAll(".window-controls button").length'), process.platform === 'darwin' ? 0 : 3);
+    assert.equal(await evaluate('document.body.textContent.includes("EARLY ACCESS") || document.body.textContent.includes("JAVA EDITION")'), false);
+    await evaluate(`window.comet.invoke({ type: 'window', action: 'maximize' })`);
+    assert.equal(window.isMaximized(), true);
+    await evaluate(`window.comet.invoke({ type: 'window', action: 'maximize' })`);
+    assert.equal(window.isMaximized(), false);
+    const badAction = await evaluate(`window.comet.invoke({ type: 'window', action: 'destroy' }).then(() => '', error => error.message)`);
+    assert.match(badAction, /Unknown window action/);
     await click('.instance.mcsr');
     assert.match(await evaluate('document.querySelector(".hero h2").textContent'), /Speedrunning/);
     await click('.tabs button:nth-child(2)');
@@ -53,7 +62,7 @@ async function main() {
     await click('[aria-label="console"]');
     assert.match(await evaluate('document.querySelector("pre").textContent'), /No game output/);
     assert.deepEqual(errors, []);
-    console.log(`Electron smoke passed: navigation, selection, filtering, settings IPC, auth setup error, traversal rejection, console. Screenshot: ${screenshotPath}`);
+    console.log(`Electron smoke passed: navigation, window controls, selection, filtering, settings IPC, auth setup error, traversal rejection, console. Screenshot: ${screenshotPath}`);
   } finally {
     clearTimeout(timeout);
     app.removeAllListeners('window-all-closed');

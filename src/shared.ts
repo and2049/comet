@@ -22,6 +22,8 @@ export interface Snapshot {
   status: string;
   logs: string[];
   deviceCode: string | null;
+  maximized: boolean;
+  platform: 'windows' | 'osx' | 'linux';
 }
 export type Command =
   | { type: 'snapshot' }
@@ -32,7 +34,8 @@ export type Command =
   | { type: 'logout' }
   | { type: 'install'; id: string }
   | { type: 'launch'; id: string }
-  | { type: 'folder'; id: string };
+  | { type: 'folder'; id: string }
+  | { type: 'window'; action: 'minimize' | 'maximize' | 'close' };
 export interface Bridge {
   invoke(command: Command): Promise<Snapshot>;
   subscribe(callback: (state: Snapshot) => void): () => void;

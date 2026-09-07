@@ -4,7 +4,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { randomUUID } from 'node:crypto';
 import { createInterface } from 'node:readline';
-import { defaults, instances, prismFiles, record, redact, settingsFrom, text } from './core.js';
+import { defaults, instances, platform, prismFiles, record, redact, settingsFrom, text } from './core.js';
 import { login, refresh, sessionFrom, type Session } from './auth.js';
 import { gameDirectory, install, installRuntime, launchGame, verifyJava } from './minecraft.js';
 import { withFabric } from './fabric.js';
@@ -17,7 +17,7 @@ let root: string;
 let session: Session | null = null;
 let loginController: AbortController | null = null;
 const storageHint = process.platform === 'linux' ? 'System secure storage is unavailable. Install and unlock a keyring such as gnome-keyring or KWallet.' : 'System secure storage is unavailable.';
-const state: Snapshot = { instances, settings: defaults, account: null, running: null, busy: false, status: 'Choose an instance to get started', logs: [], deviceCode: null };
+const state: Snapshot = { instances, settings: defaults, account: null, running: null, busy: false, status: 'Choose an instance to get started', logs: [], deviceCode: null, maximized: false, platform: platform().os };
 function publish(): Snapshot {
   if (window && !window.isDestroyed()) window.webContents.send('comet:state', state);
   return state;
@@ -65,6 +65,14 @@ async function command(input: unknown): Promise<Snapshot> {
   const type = text(request.type);
   if (type === 'snapshot') return state;
   if (type === 'cancelLogin') { loginController?.abort(); return state; }
+  if (type === 'window') {
+    const action = text(request.action);
+    if (action === 'minimize') window.minimize();
+    else if (action === 'maximize') window.isMaximized() ? window.unmaximize() : window.maximize();
+    else if (action === 'close') window.close();
+    else throw new Error('Unknown window action.');
+    return state;
+  }
   if (state.busy) throw new Error('Wait for the current operation to finish.');
   if (type === 'settings') {
     const next = settingsFrom(request.settings);
@@ -159,9 +167,13 @@ else {
     await initialize();
     window = new BrowserWindow({
       width: 1320, height: 850, minWidth: 1000, minHeight: 700, title: 'Comet', backgroundColor: '#101114',
+      frame: false, titleBarStyle: 'hidden', trafficLightPosition: { x: 14, y: 18 },
       webPreferences: { preload: path.join(here, 'preload.cjs'), contextIsolation: true, nodeIntegration: false, sandbox: true },
     });
     window.setMenuBarVisibility(false);
+    const maximized = () => { state.maximized = window.isMaximized(); publish(); };
+    window.on('maximize', maximized);
+    window.on('unmaximize', maximized);
     window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
     window.webContents.on('will-navigate', event => event.preventDefault());
     window.webContents.session.setPermissionRequestHandler((_contents, _permission, callback) => callback(false));
