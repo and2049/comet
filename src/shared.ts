@@ -12,7 +12,10 @@ export interface Settings {
   memoryMb: number;
   minimizeOnLaunch: boolean;
 }
-export interface Account { id: string; name: string }
+export interface Account {
+  id: string;
+  name: string;
+}
 export interface Snapshot {
   instances: Instance[];
   settings: Settings;

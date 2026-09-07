@@ -9,7 +9,8 @@ await mkdir(temporaryRoot, { recursive: true });
 const data = await mkdtemp(path.join(temporaryRoot, 'comet-smoke-'));
 try {
   const child = spawn(createRequire(import.meta.url)('electron') as string, ['tests/electron-smoke.cjs'], {
-    stdio: 'inherit', env: { ...process.env, COMET_SMOKE_DATA: data },
+    stdio: 'inherit',
+    env: { ...process.env, COMET_SMOKE_DATA: data },
   });
   const code = await new Promise<number>((resolve, reject) => {
     child.once('error', reject);

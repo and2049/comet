@@ -39,6 +39,7 @@ Instances have separate game directories under Comet's data folder: `%APPDATA%\C
 bun test
 bun run typecheck
 bun run build
+bun run format
 ```
 
 Additional checks: `bun run test:electron`, `bun run test:metadata`, and `bun run test:install`. The install check downloads all three versions and can transfer several hundred MB.
