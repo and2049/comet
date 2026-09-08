@@ -24,10 +24,50 @@ const preview: Snapshot = {
   maximized: false,
   platform: 'windows',
 };
+function art(instance: Instance): string {
+  return `art/${instance.version}.jpg`;
+}
 function loader(instance: Instance): string {
   return instance.profile === 'mcsr' ? 'Fabric' : 'Vanilla';
 }
 type Page = 'library' | 'settings' | 'console';
+function ramp(axis: 'x' | 'y'): string {
+  const [dir, on, mid] = axis === 'x' ? ['x2="1" y2="0"', '#f00', '#800'] : ['x2="0" y2="1"', '#0f0', '#080'];
+  const stops = [
+    [0, on],
+    [0.2, mid],
+    [0.8, mid],
+    [1, '#000'],
+  ]
+    .map(([offset, color]) => `<stop offset="${offset}" stop-color="${color}"/>`)
+    .join('');
+  return `data:image/svg+xml,${encodeURIComponent(
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1" preserveAspectRatio="none"><linearGradient id="g" ${dir}>${stops}</linearGradient><rect width="1" height="1" fill="url(#g)"/></svg>`,
+  )}`;
+}
+function Backdrop(): React.JSX.Element {
+  return (
+    <>
+      <video className="backdrop" src="background.mp4" autoPlay muted loop playsInline aria-hidden="true" />
+      <div className="frost" aria-hidden="true">
+        <i />
+        <i />
+        <i />
+        <i />
+      </div>
+      <svg className="defs" aria-hidden="true">
+        <filter id="lens" x="0" y="0" width="100%" height="100%" colorInterpolationFilters="sRGB">
+          <feImage href={ramp('x')} preserveAspectRatio="none" result="rx" />
+          <feImage href={ramp('y')} preserveAspectRatio="none" result="ry" />
+          <feComposite in="rx" in2="ry" operator="arithmetic" k2="1" k3="1" result="map" />
+          <feGaussianBlur in="SourceGraphic" stdDeviation="12" result="blur" />
+          <feDisplacementMap in="blur" in2="map" scale="40" xChannelSelector="R" yChannelSelector="G" result="warp" />
+          <feColorMatrix in="warp" type="saturate" values="1.5" />
+        </filter>
+      </svg>
+    </>
+  );
+}
 function Icon({
   name,
 }: {
@@ -111,6 +151,7 @@ function App(): React.JSX.Element {
   );
   return (
     <div className={`app ${state.platform} ${state.maximized ? 'maximized' : ''}`}>
+      <Backdrop />
       <aside className="rail">
         <div className="brand-mark" title="Comet">
           <Icon name="comet" />
@@ -195,6 +236,7 @@ function App(): React.JSX.Element {
           {page === 'library' && (
             <>
               <section className={`hero ${selected.profile}`}>
+                <img className="art" src={art(selected)} alt="" />
                 <div className="hero-copy">
                   <span className="eyebrow">{selected.profile === 'mcsr' ? 'SPEEDRUNNING' : 'COMET PVP'}</span>
                   <h2>
@@ -255,6 +297,10 @@ function App(): React.JSX.Element {
                         aria-pressed={instance.id === selectedId}
                       >
                         <div className="cover">
+                          <img className="art" src={art(instance)} alt="" />
+                          {instance.profile === 'mcsr' && (
+                            <img className="badge" src="art/mcsr-ranked.png" alt="MCSR Ranked" />
+                          )}
                           <span>{instance.profile === 'pvp' ? 'COMET / PVP' : 'COMET / MCSR'}</span>
                           <strong>{instance.version}</strong>
                         </div>
