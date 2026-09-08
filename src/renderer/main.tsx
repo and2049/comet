@@ -129,7 +129,6 @@ function App(): React.JSX.Element {
             </button>
           ))}
         </nav>
-        <span className="rail-version">0.1</span>
       </aside>
       <div className="workspace">
         <header className="topbar">
@@ -418,10 +417,6 @@ function App(): React.JSX.Element {
             </>
           )}
         </main>
-        <footer>
-          <span className={locked ? 'status-dot working' : 'status-dot'} />
-          <span role="status">{state.status}</span>
-        </footer>
       </div>
     </div>
   );

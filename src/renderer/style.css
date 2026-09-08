@@ -147,11 +147,6 @@ svg {
   color: var(--green);
   border: 1px solid #34412c;
 }
-.rail-version {
-  margin-top: auto;
-  font-size: 11px;
-  color: #555b65;
-}
 .workspace {
   flex: 1;
   min-width: 0;
@@ -159,7 +154,7 @@ svg {
   flex-direction: column;
 }
 .topbar {
-  height: 58px;
+  height: 50px;
   flex-shrink: 0;
   padding: 0 0 0 32px;
   display: flex;
@@ -178,7 +173,7 @@ svg {
   display: flex;
   align-self: center;
   gap: 2px;
-  margin: 0 14px 0 12px;
+  margin: 0 10px 0 12px;
 }
 .window-controls button {
   width: 30px;
@@ -246,19 +241,19 @@ svg {
 .account {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   background: #1c1e24;
-  padding: 6px 12px 6px 6px;
-  font-size: 12px;
+  padding: 5px 11px 5px 5px;
+  font-size: 11px;
 }
 .avatar {
   display: grid;
   place-items: center;
-  width: 27px;
-  height: 27px;
+  width: 22px;
+  height: 22px;
   background: #353b35;
   color: #c4d4bc;
-  font-size: 9px;
+  font-size: 8px;
   border-radius: 4px;
 }
 main {
@@ -591,29 +586,6 @@ dd {
 .detail-buttons button span {
   float: right;
 }
-footer {
-  flex-shrink: 0;
-  background: #101114;
-  border-top: 1px solid #24272d;
-  min-height: 36px;
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  padding: 8px 32px;
-  font-size: 10px;
-  color: #969ca6;
-}
-.status-dot {
-  width: 5px;
-  height: 5px;
-  flex-shrink: 0;
-  background: #8b949e;
-  border-radius: 50%;
-}
-.working {
-  background: var(--green);
-  animation: pulse 1.5s infinite;
-}
 .error {
   background: #351e1d;
   border: 1px solid #70423e;
@@ -733,11 +705,6 @@ input[type='checkbox'] {
 .empty {
   padding: 35px 0;
   font-size: 13px;
-}
-@keyframes pulse {
-  50% {
-    opacity: 0.25;
-  }
 }
 @media (prefers-reduced-motion: reduce) {
   * {
