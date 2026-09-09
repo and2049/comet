@@ -30,8 +30,9 @@ export function platform(): Platform {
     throw new Error('This build supports Windows x64, Linux x64 and macOS only.');
   return { os: os_, arch, version: os.release() };
 }
-export function javaExecutable(javaPath: string): string {
-  return javaPath.replace(/javaw(\.exe)?$/i, 'java$1');
+export function javaExecutable(javaPath: string, gui = false, os = platform().os): string {
+  const name = gui && os === 'windows' ? 'javaw' : 'java';
+  return javaPath.replace(/javaw?(\.exe)?$/i, (_, exe?: string) => name + (exe ?? ''));
 }
 export function settingsFrom(value: unknown): Settings {
   const s = record(value);

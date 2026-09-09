@@ -255,9 +255,8 @@ export function launchGame(
   session: Session,
   java: string,
 ): ChildProcess {
-  return spawn(javaExecutable(java), launchArguments(installation, settings, session), {
+  return spawn(javaExecutable(java, true), launchArguments(installation, settings, session), {
     cwd: installation.game,
-    windowsHide: true,
     shell: false,
     stdio: ['ignore', 'pipe', 'pipe'],
   });

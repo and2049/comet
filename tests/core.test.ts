@@ -79,6 +79,9 @@ describe('trust boundaries', () => {
     expect(javaExecutable('C:\\Java\\bin\\javaw.exe')).toBe('C:\\Java\\bin\\java.exe');
     expect(javaExecutable('/opt/jre/bin/javaw')).toBe('/opt/jre/bin/java');
     expect(javaExecutable('/opt/jre/bin/java')).toBe('/opt/jre/bin/java');
+    expect(javaExecutable('C:\\Java\\bin\\java.exe', true, 'windows')).toBe('C:\\Java\\bin\\javaw.exe');
+    expect(javaExecutable('C:\\Java\\bin\\javaw.exe', true, 'windows')).toBe('C:\\Java\\bin\\javaw.exe');
+    expect(javaExecutable('/opt/jre/bin/javaw', true, 'linux')).toBe('/opt/jre/bin/java');
   });
   test('removes known tokens and token argument values', () => {
     expect(redact('secret-token --accessToken other-token', ['secret-token'])).toBe(
