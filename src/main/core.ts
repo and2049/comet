@@ -1,13 +1,24 @@
 import path from 'node:path';
 import os from 'node:os';
-import type { Instance, Settings } from '../shared.js';
+import type { Draft, Instance, LoaderKind, Pack, Settings } from '../shared.js';
 
 export const instances: Instance[] = [
-  { id: 'pvp-1.8.9', name: 'Classic combat', profile: 'pvp', version: '1.8.9' },
-  { id: 'pvp-1.7.10', name: 'Legacy combat', profile: 'pvp', version: '1.7.10' },
-  { id: 'mcsr-1.16.1', name: 'Speedrunning', profile: 'mcsr', version: '1.16.1' },
+  { id: 'pvp-1.8.9', name: 'Classic combat', profile: 'pvp', version: '1.8.9', loader: 'vanilla', directory: 'comet' },
+  { id: 'pvp-1.7.10', name: 'Legacy combat', profile: 'pvp', version: '1.7.10', loader: 'vanilla', directory: 'comet' },
+  {
+    id: 'mcsr-1.16.1',
+    name: 'Speedrunning',
+    profile: 'mcsr',
+    version: '1.16.1',
+    loader: 'fabric',
+    directory: 'isolated',
+    pack: { source: 'mcsr', name: 'MCSR Ranked RSG pack' },
+  },
 ];
 export const defaults: Settings = { clientId: '', javaPath: '', memoryMb: 4096, minimizeOnLaunch: true };
+export const versionPattern = /^[\w.+-]{1,40}$/;
+const idPattern = /^[a-z0-9][a-z0-9-]{0,40}$/;
+const loaders: readonly LoaderKind[] = ['vanilla', 'fabric', 'quilt'];
 
 export function record(value: unknown): Record<string, unknown> {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Expected an object.');
@@ -33,6 +44,80 @@ export function platform(): Platform {
 export function javaExecutable(javaPath: string, gui = false, os = platform().os): string {
   const name = gui && os === 'windows' ? 'javaw' : 'java';
   return javaPath.replace(/javaw?(\.exe)?$/i, (_, exe?: string) => name + (exe ?? ''));
+}
+export function officialDirectory(os: Platform['os'], home: string, appData: string): string {
+  if (os === 'windows') return path.join(appData, '.minecraft');
+  if (os === 'osx') return path.join(home, 'Library', 'Application Support', 'minecraft');
+  return path.join(home, '.minecraft');
+}
+function oneOf<T extends string>(value: unknown, options: readonly T[], label: string): T {
+  if (typeof value !== 'string' || !options.includes(value as T)) throw new Error(`Invalid instance ${label}.`);
+  return value as T;
+}
+function version(value: unknown, label: string): string {
+  if (typeof value !== 'string' || !versionPattern.test(value)) throw new Error(`Invalid ${label} version.`);
+  return value;
+}
+export function cleanName(value: unknown, fallback = 'Instance'): string {
+  const name =
+    typeof value === 'string'
+      ? value
+          .replace(/[\p{Cc}]+/gu, ' ')
+          .trim()
+          .slice(0, 80)
+      : '';
+  return name || fallback;
+}
+export function instanceId(name: string, taken: Iterable<string>): string {
+  const existing = new Set(taken);
+  const base =
+    name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 32) || 'instance';
+  let id = base;
+  for (let n = 2; existing.has(id); n++) id = `${base}-${n}`;
+  return id;
+}
+export function draftFrom(value: unknown): Draft {
+  const s = record(value);
+  const loader = oneOf(s.loader, loaders, 'loader');
+  const draft: Draft = {
+    name: cleanName(s.name, ''),
+    version: version(s.version, 'Minecraft'),
+    loader,
+    directory: oneOf(s.directory, ['isolated', 'official'] as const, 'folder'),
+  };
+  if (!draft.name) throw new Error('Give the instance a name.');
+  if (loader !== 'vanilla') draft.loaderVersion = version(s.loaderVersion, 'loader');
+  return draft;
+}
+export function instanceFrom(value: unknown, folder: string): Instance {
+  const s = record(value);
+  const id = text(s.id);
+  if (id !== folder || !idPattern.test(id)) throw new Error('Instance id does not match its folder.');
+  const instance: Instance = {
+    id,
+    name: cleanName(s.name),
+    profile: oneOf(s.profile, ['pvp', 'mcsr', 'custom'] as const, 'profile'),
+    version: version(s.version, 'Minecraft'),
+    loader: oneOf(s.loader, loaders, 'loader'),
+    directory: oneOf(s.directory, ['isolated', 'comet', 'official'] as const, 'folder'),
+  };
+  if (s.loaderVersion !== undefined) instance.loaderVersion = version(s.loaderVersion, 'loader');
+  if (s.pack !== undefined) {
+    const p = record(s.pack);
+    if (instance.directory !== 'isolated') throw new Error('Pack instances must use their own folder.');
+    const pack: Pack = {
+      source: oneOf(p.source, ['mcsr', 'modrinth', 'import'] as const, 'pack'),
+      name: cleanName(p.name),
+    };
+    if (p.versionId !== undefined) pack.versionId = text(p.versionId).slice(0, 80);
+    if (p.projectId !== undefined) pack.projectId = text(p.projectId).slice(0, 80);
+    instance.pack = pack;
+  }
+  return instance;
 }
 export function settingsFrom(value: unknown): Settings {
   const s = record(value);
@@ -98,13 +183,15 @@ export function expand(args: Argument[], values: Record<string, string>, target:
     );
 }
 export function prismFiles(instance: Instance): { config: string; pack: string } {
+  const uids = { fabric: 'net.fabricmc.fabric-loader', quilt: 'org.quiltmc.quilt-loader' };
+  const components: { uid: string; version: string; important?: boolean }[] = [
+    { uid: 'net.minecraft', version: instance.version, important: true },
+  ];
+  if (instance.loader !== 'vanilla' && instance.loaderVersion)
+    components.push({ uid: uids[instance.loader], version: instance.loaderVersion });
   return {
     config: `[General]\nConfigVersion=1.2\nInstanceType=OneSix\nname=${instance.name}\niconKey=default\n`,
-    pack: JSON.stringify(
-      { formatVersion: 1, components: [{ uid: 'net.minecraft', version: instance.version, important: true }] },
-      null,
-      2,
-    ),
+    pack: JSON.stringify({ formatVersion: 1, components }, null, 2),
   };
 }
 export function redact(line: string, secrets: string[]): string {

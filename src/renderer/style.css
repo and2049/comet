@@ -47,7 +47,8 @@ pre {
   background: transparent;
 }
 button,
-input {
+input,
+select {
   font: inherit;
 }
 button {
@@ -79,11 +80,13 @@ button:disabled {
   cursor: not-allowed;
 }
 button:focus-visible,
-input:focus-visible {
+input:focus-visible,
+select:focus-visible {
   outline: 2px solid var(--green);
   outline-offset: 3px;
 }
-input {
+input,
+select {
   border: 1px solid var(--edge);
   border-radius: 999px;
   background: rgba(0, 0, 0, 0.28);
@@ -793,10 +796,103 @@ dd {
   margin-top: 18px;
   color: rgba(238, 240, 242, 0.8);
 }
-.settings-section label > input:not([type='checkbox']) {
+.settings-section label > input:not([type='checkbox']):not([type='radio']),
+.settings-section label > select {
   display: block;
   width: 100%;
   margin-top: 10px;
+}
+select {
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: 42px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23eef0f2' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 16px center;
+}
+select option {
+  background: #16181d;
+  color: #eef0f2;
+}
+input[type='radio'] {
+  accent-color: var(--green);
+  margin: 0 8px 0 0;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+.choices {
+  display: flex;
+  gap: 18px;
+  margin-top: 10px;
+}
+.choices .checkbox {
+  margin-top: 0;
+}
+.tab-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 14px 0 18px;
+}
+.tab-row .tabs {
+  margin: 0;
+}
+.new {
+  font-size: 11px;
+  padding: 8px 16px;
+}
+.cover.generic {
+  background:
+    linear-gradient(150deg, rgba(168, 239, 120, 0.2), rgba(255, 255, 255, 0.05) 55%, rgba(255, 255, 255, 0.02)),
+    var(--glass);
+}
+.results {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 16px 0 12px;
+  max-height: 340px;
+  overflow: auto;
+  padding-right: 4px;
+}
+.result {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-align: left;
+  border-radius: 14px;
+  padding: 8px 12px;
+  backdrop-filter: none;
+}
+.result.selected {
+  border-color: rgba(168, 239, 120, 0.7);
+  background: rgba(168, 239, 120, 0.12);
+}
+.result img,
+.result-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  flex-shrink: 0;
+  object-fit: cover;
+  background: rgba(255, 255, 255, 0.08);
+}
+.result h3 {
+  font-size: 12px;
+}
+.result p {
+  font-size: 10px;
+  margin-top: 3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.result > div {
+  min-width: 0;
+}
+.danger {
+  border-color: rgba(255, 120, 100, 0.5);
+  background: rgba(196, 43, 28, 0.28);
 }
 .settings-section .hint {
   font-size: 11px;

@@ -2,11 +2,16 @@ import { describe, expect, test } from 'bun:test';
 import path from 'node:path';
 import {
   allowed,
+  cleanName,
   defaults,
+  draftFrom,
   expand,
   inside,
+  instanceFrom,
+  instanceId,
   instances,
   javaExecutable,
+  officialDirectory,
   prismFiles,
   redact,
   settingsFrom,
@@ -17,14 +22,39 @@ const windows: Platform = { os: 'windows', arch: 'x86_64', version: '10.0' };
 const mac: Platform = { os: 'osx', arch: 'aarch64', version: '23.0' };
 import { officialUrl } from '../src/main/net';
 import { gameDirectory, launchArguments, type Installation } from '../src/main/minecraft';
+import type { Instance } from '../src/shared';
 
-describe('instance isolation and Prism serialization', () => {
-  test('profile identity stays isolated even on the same version', () => {
-    const pvp = { ...instances[0], version: '1.16.1' as const };
+const custom: Instance = {
+  id: 'survival',
+  name: 'Survival',
+  profile: 'custom',
+  version: '1.21.1',
+  loader: 'fabric',
+  loaderVersion: '0.16.9',
+  directory: 'isolated',
+};
+describe('instance directories and Prism serialization', () => {
+  test('Comet PvP versions share one folder while MCSR and custom instances stay isolated', () => {
+    expect(gameDirectory('root', instances[0])).toBe(gameDirectory('root', instances[1]));
+    expect(gameDirectory('root', instances[0])).toBe(path.join('root', 'shared', 'comet', '.minecraft'));
+    const pvp = { ...instances[0], version: '1.16.1' };
     expect(gameDirectory('root', pvp)).not.toBe(gameDirectory('root', instances[2]));
-    expect(new Set(instances.map(i => gameDirectory('root', i))).size).toBe(3);
+    expect(gameDirectory('root', instances[2])).toBe(path.join('root', 'instances', 'mcsr-1.16.1', '.minecraft'));
+    expect(gameDirectory('root', custom)).toBe(path.join('root', 'instances', 'survival', '.minecraft'));
+    const official = gameDirectory('root', { ...custom, directory: 'official' });
+    expect(official).not.toContain('root');
+    expect(official.toLowerCase()).toContain('minecraft');
   });
-  test('writes vanilla Prism components and config', () => {
+  test('official launcher folders per platform', () => {
+    expect(officialDirectory('windows', 'C:\\Users\\a', 'C:\\Users\\a\\AppData\\Roaming')).toBe(
+      'C:\\Users\\a\\AppData\\Roaming\\.minecraft',
+    );
+    expect(officialDirectory('linux', '/home/a', '')).toBe(path.join('/home/a', '.minecraft'));
+    expect(officialDirectory('osx', '/Users/a', '')).toBe(
+      path.join('/Users/a', 'Library', 'Application Support', 'minecraft'),
+    );
+  });
+  test('writes Prism components and config', () => {
     for (const instance of instances) {
       const files = prismFiles(instance);
       expect(files.config).toContain('InstanceType=OneSix');
@@ -32,8 +62,60 @@ describe('instance isolation and Prism serialization', () => {
         formatVersion: 1,
         components: [{ uid: 'net.minecraft', version: instance.version, important: true }],
       });
-      expect(files.pack).not.toContain('fabric');
     }
+    expect(JSON.parse(prismFiles(custom).pack).components).toEqual([
+      { uid: 'net.minecraft', version: '1.21.1', important: true },
+      { uid: 'net.fabricmc.fabric-loader', version: '0.16.9' },
+    ]);
+    expect(JSON.parse(prismFiles({ ...custom, loader: 'quilt' }).pack).components[1].uid).toBe(
+      'org.quiltmc.quilt-loader',
+    );
+  });
+  test('validates stored instances and rejects mismatched or unsafe descriptors', () => {
+    expect(instanceFrom({ ...custom, schemaVersion: 2, extra: 1 }, 'survival')).toEqual(custom);
+    expect(
+      instanceFrom({ ...custom, pack: { source: 'import', name: 'Pack', versionId: '1.0' } }, 'survival').pack,
+    ).toEqual({ source: 'import', name: 'Pack', versionId: '1.0' });
+    for (const [value, folder] of [
+      [custom, 'other'],
+      [{ ...custom, id: '../escape' }, '../escape'],
+      [{ ...custom, id: 'Bad Id' }, 'Bad Id'],
+      [{ ...custom, profile: 'admin' }, 'survival'],
+      [{ ...custom, version: '1.21.1; rm' }, 'survival'],
+      [{ ...custom, loader: 'forge' }, 'survival'],
+      [{ ...custom, directory: '/tmp' }, 'survival'],
+      [{ ...custom, loaderVersion: 42 }, 'survival'],
+      [{ ...custom, directory: 'official', pack: { source: 'import', name: 'Pack' } }, 'survival'],
+      [{ ...custom, pack: { source: 'curseforge', name: 'Pack' } }, 'survival'],
+    ] as const)
+      expect(() => instanceFrom(value, folder)).toThrow();
+  });
+  test('derives unique folder-safe ids and clean names', () => {
+    expect(instanceId('My Survival World!', [])).toBe('my-survival-world');
+    expect(instanceId('My Survival World!', ['my-survival-world', 'my-survival-world-2'])).toBe('my-survival-world-3');
+    expect(instanceId('***', [])).toBe('instance');
+    expect(instanceId('x'.repeat(80), [])).toHaveLength(32);
+    expect(cleanName('  Line\nBreak\u0000 ')).toBe('Line Break');
+    expect(cleanName('', 'Fallback')).toBe('Fallback');
+    expect(cleanName(undefined)).toBe('Instance');
+  });
+  test('validates create drafts from the renderer', () => {
+    expect(draftFrom({ name: ' Survival ', version: '1.21.1', loader: 'vanilla', directory: 'official' })).toEqual({
+      name: 'Survival',
+      version: '1.21.1',
+      loader: 'vanilla',
+      directory: 'official',
+    });
+    expect(
+      draftFrom({ name: 'Mods', version: '1.21.1', loader: 'quilt', loaderVersion: '0.27.0', directory: 'isolated' }),
+    ).toMatchObject({ loader: 'quilt', loaderVersion: '0.27.0' });
+    for (const draft of [
+      { name: '', version: '1.21.1', loader: 'vanilla', directory: 'isolated' },
+      { name: 'x', version: '1.21.1', loader: 'fabric', directory: 'isolated' },
+      { name: 'x', version: '1.21.1', loader: 'vanilla', directory: 'comet' },
+      { name: 'x', version: '../1.21.1', loader: 'vanilla', directory: 'isolated' },
+    ])
+      expect(() => draftFrom(draft)).toThrow();
   });
 });
 describe('trust boundaries', () => {
@@ -140,10 +222,42 @@ describe('Minecraft metadata rules', () => {
       accessToken: 'token',
       refreshToken: 'refresh',
       clientId: 'id',
+      xuid: '2535xuid',
     });
     expect(args).toContain('C:\\With Spaces\\game');
     expect(args).toContain('-Xmx4096M');
     expect(args).toContain('{}');
     expect(args).not.toContain('--demo');
+  });
+  test('supplies modern client id and Xbox user id arguments', () => {
+    const installation: Installation = {
+      metadata: {
+        id: '1.21.1',
+        type: 'release',
+        mainClass: 'net.minecraft.client.main.Main',
+        libraries: [],
+        downloads: { client: { url: '', sha1: '' } },
+        assetIndex: { id: '17', url: '', sha1: '' },
+        arguments: {
+          jvm: ['-cp', '${classpath}'],
+          game: ['--clientId', '${clientid}', '--xuid', '${auth_xuid}', '--userType', '${user_type}'],
+        },
+      },
+      classpath: ['client.jar'],
+      game: 'game',
+      assets: 'assets',
+      natives: 'natives',
+      gameAssets: 'assets',
+    };
+    const args = launchArguments(installation, defaults, {
+      account: { name: 'Tester', id: '0'.repeat(32) },
+      accessToken: 'token',
+      refreshToken: 'refresh',
+      clientId: 'client-uuid',
+      xuid: '2535xuid',
+    });
+    expect(args[args.indexOf('--clientId') + 1]).toBe('client-uuid');
+    expect(args[args.indexOf('--xuid') + 1]).toBe('2535xuid');
+    expect(args).toContain('msa');
   });
 });

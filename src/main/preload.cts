@@ -1,8 +1,9 @@
 import { contextBridge, ipcRenderer } from 'electron';
-import type { Bridge, Snapshot } from '../shared.js';
+import type { Bridge, Query, QueryResult, Snapshot } from '../shared.js';
 
 const bridge: Bridge = {
   invoke: command => ipcRenderer.invoke('comet:command', command),
+  query: <Q extends Query>(query: Q) => ipcRenderer.invoke('comet:query', query) as Promise<QueryResult<Q>>,
   subscribe: callback => {
     const listener = (_event: Electron.IpcRendererEvent, state: Snapshot) => callback(state);
     ipcRenderer.on('comet:state', listener);

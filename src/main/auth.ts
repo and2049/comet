@@ -10,6 +10,7 @@ export interface Session {
   accessToken: string;
   refreshToken: string;
   clientId: string;
+  xuid: string;
 }
 export function sessionFrom(value: unknown): Session {
   const s = record(value);
@@ -19,6 +20,7 @@ export function sessionFrom(value: unknown): Session {
     accessToken: text(s.accessToken),
     refreshToken: text(s.refreshToken),
     clientId: text(s.clientId),
+    xuid: typeof s.xuid === 'string' ? s.xuid : '',
   };
 }
 async function exchange(msa: Record<string, unknown>, clientId: string, signal?: AbortSignal): Promise<Session> {
@@ -43,8 +45,10 @@ async function exchange(msa: Record<string, unknown>, clientId: string, signal?:
   });
   const claims = record(xsts.DisplayClaims).xui;
   if (!Array.isArray(claims) || !claims.length) throw new Error('Xbox profile is missing.');
+  const first = record(claims[0]);
+  const xuid = typeof first.xid === 'string' ? first.xid : '';
   const minecraft = await post('https://api.minecraftservices.com/authentication/login_with_xbox', {
-    identityToken: `XBL3.0 x=${text(record(claims[0]).uhs)};${text(xsts.Token)}`,
+    identityToken: `XBL3.0 x=${text(first.uhs)};${text(xsts.Token)}`,
   });
   const accessToken = text(minecraft.access_token);
   const headers = { Authorization: `Bearer ${accessToken}` };
@@ -57,7 +61,7 @@ async function exchange(msa: Record<string, unknown>, clientId: string, signal?:
   const account = { id: text(profile.id), name: text(profile.name) };
   if (!/^[a-f0-9]{32}$/i.test(account.id) || !/^\w{1,16}$/.test(account.name))
     throw new Error('Invalid Minecraft profile.');
-  return { account, accessToken, refreshToken: text(msa.refresh_token), clientId };
+  return { account, accessToken, refreshToken: text(msa.refresh_token), clientId, xuid };
 }
 export async function login(clientId: string, showCode: (code: string) => void, signal: AbortSignal): Promise<Session> {
   if (!clientId) throw new Error('Add Comet’s approved Microsoft application ID in Settings first.');

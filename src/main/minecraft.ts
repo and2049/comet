@@ -2,10 +2,22 @@ import { execFile, spawn, type ChildProcess } from 'node:child_process';
 import { promisify } from 'node:util';
 import { chmod, copyFile, mkdir, readFile, rm, symlink, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { allowed, expand, inside, javaExecutable, platform, type Argument, type Platform, type Rule } from './core.js';
+import os from 'node:os';
+import {
+  allowed,
+  expand,
+  inside,
+  javaExecutable,
+  officialDirectory,
+  platform,
+  versionPattern,
+  type Argument,
+  type Platform,
+  type Rule,
+} from './core.js';
 import { download, json, officialUrl, parallel, type Download } from './net.js';
 import { extractZip } from './zip.js';
-import type { Instance, Settings } from '../shared.js';
+import type { Instance, Settings, VersionInfo } from '../shared.js';
 import type { Session } from './auth.js';
 
 const exec = promisify(execFile);
@@ -41,7 +53,25 @@ export interface Installation {
   gameAssets: string;
 }
 export function gameDirectory(root: string, instance: Instance): string {
+  if (instance.directory === 'official')
+    return officialDirectory(
+      platform().os,
+      os.homedir(),
+      process.env.APPDATA || path.join(os.homedir(), 'AppData', 'Roaming'),
+    );
+  if (instance.directory === 'comet') return path.join(root, 'shared', 'comet', '.minecraft');
   return path.join(root, 'instances', instance.id, '.minecraft');
+}
+interface Manifest {
+  versions: (VersionInfo & { url: string; sha1: string })[];
+}
+async function manifest(): Promise<Manifest> {
+  return (await json('https://launchermeta.mojang.com/mc/game/version_manifest_v2.json')) as Manifest;
+}
+export async function versionList(): Promise<VersionInfo[]> {
+  return (await manifest()).versions
+    .filter(entry => versionPattern.test(entry.id))
+    .map(({ id, type, releaseTime }) => ({ id, type, releaseTime }));
 }
 export async function install(
   root: string,
@@ -50,10 +80,7 @@ export async function install(
 ): Promise<Installation> {
   const target = platform();
   report(`Resolving Minecraft ${instance.version}`);
-  const manifest = (await json('https://launchermeta.mojang.com/mc/game/version_manifest_v2.json')) as {
-    versions: { id: string; url: string; sha1: string }[];
-  };
-  const entry = manifest.versions.find(v => v.id === instance.version);
+  const entry = (await manifest()).versions.find(v => v.id === instance.version);
   if (!entry) throw new Error('Version is not in the official Minecraft manifest.');
   const versionRoot = path.join(root, 'cache', 'versions', instance.version);
   const metadataFile = path.join(versionRoot, `${instance.version}.json`);
@@ -196,18 +223,21 @@ export async function installRuntime(
   report(`Java runtime ${entry.version.name} is ready`);
   return inside(home, executable);
 }
-export function javaMatches(output: string, major: number): boolean {
+export function javaMatches(output: string, major?: number): boolean {
   const version = /java\.specification\.version\s*=\s*(\S+)/.exec(output)?.[1];
-  return version === (major === 8 ? '1.8' : String(major)) && /sun\.arch\.data\.model\s*=\s*64/.test(output);
+  const wanted = major === undefined || version === (major === 8 ? '1.8' : String(major));
+  return wanted && /sun\.arch\.data\.model\s*=\s*64/.test(output);
 }
-export async function verifyJava(javaPath: string, major = 8): Promise<void> {
+export async function verifyJava(javaPath: string, major?: number): Promise<void> {
   const result = await exec(javaExecutable(javaPath), ['-XshowSettings:properties', '-version'], {
     windowsHide: true,
     timeout: 15000,
   });
   if (!javaMatches(result.stdout + result.stderr, major))
     throw new Error(
-      `This version requires a 64-bit Java ${major} runtime. Clear the Java override in Settings to use the managed runtime.`,
+      major === undefined
+        ? 'Choose a 64-bit Java runtime.'
+        : `This version requires a 64-bit Java ${major} runtime. Clear the Java override in Settings to use the managed runtime.`,
     );
 }
 export function launchArguments(installation: Installation, settings: Settings, session: Session): string[] {
@@ -217,6 +247,8 @@ export function launchArguments(installation: Installation, settings: Settings, 
     auth_uuid: session.account.id,
     auth_access_token: session.accessToken,
     auth_session: `token:${session.accessToken}:${session.account.id}`,
+    auth_xuid: session.xuid,
+    clientid: session.clientId,
     user_type: 'msa',
     user_properties: '{}',
     version_name: metadata.id,

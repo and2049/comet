@@ -4,11 +4,15 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { randomUUID } from 'node:crypto';
 import { createInterface } from 'node:readline';
-import { defaults, instances, platform, prismFiles, record, redact, settingsFrom, text } from './core.js';
+import { defaults, draftFrom, platform, record, redact, settingsFrom, text } from './core.js';
 import { login, refresh, sessionFrom, type Session } from './auth.js';
-import { gameDirectory, install, installRuntime, launchGame, verifyJava } from './minecraft.js';
-import { withFabric } from './fabric.js';
-import type { Snapshot } from '../shared.js';
+import { gameDirectory, install, installRuntime, launchGame, verifyJava, versionList } from './minecraft.js';
+import { installLoader, loaderVersions, mergeLoader } from './loader.js';
+import { installMcsr } from './mcsr.js';
+import { createInstance, loadInstances, removeInstance } from './instances.js';
+import { importArchive, importUrl } from './imports.js';
+import { installModrinth, modrinthId, projectVersions, searchModpacks } from './modrinth.js';
+import type { Instance, Snapshot } from '../shared.js';
 
 app.setName('Comet');
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -21,7 +25,8 @@ const storageHint =
     ? 'System secure storage is unavailable. Install and unlock a keyring such as gnome-keyring or KWallet.'
     : 'System secure storage is unavailable.';
 const state: Snapshot = {
-  instances,
+  instances: [],
+  selected: null,
   settings: defaults,
   account: null,
   running: null,
@@ -77,22 +82,38 @@ async function initialize(): Promise<void> {
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== 'ENOENT') log('Saved account could not be unlocked. Sign in again.');
   }
-  for (const instance of instances) {
-    const folder = path.join(root, 'instances', instance.id);
-    await mkdir(gameDirectory(root, instance), { recursive: true });
-    const files = prismFiles(instance);
-    for (const [name, contents] of Object.entries({
-      'instance.cfg': files.config,
-      'mmc-pack.json': files.pack,
-      'comet.json': JSON.stringify({ profile: instance.profile, schemaVersion: 1 }),
-    })) {
-      try {
-        await writeFile(path.join(folder, name), contents, { flag: 'wx' });
-      } catch (error) {
-        if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error;
-      }
-    }
+  state.instances = await loadInstances(root, log);
+}
+async function query(input: unknown): Promise<unknown> {
+  const request = record(input);
+  const type = text(request.type);
+  if (type === 'versions') return versionList();
+  if (type === 'loaders') {
+    const loader = text(request.loader);
+    if (loader !== 'fabric' && loader !== 'quilt') throw new Error('Unknown loader.');
+    return loaderVersions(loader, text(request.version));
   }
+  if (type === 'modrinthSearch') {
+    const offset = Number.isInteger(request.offset) && (request.offset as number) >= 0 ? (request.offset as number) : 0;
+    return searchModpacks(typeof request.query === 'string' ? request.query.slice(0, 100) : '', offset);
+  }
+  if (type === 'modrinthVersions') return projectVersions(modrinthId(request.projectId));
+  throw new Error('Unknown query.');
+}
+async function createFrom(request: Record<string, unknown>, type: string): Promise<Instance | null> {
+  if (type === 'create') {
+    const { directory, ...draft } = draftFrom(request.draft);
+    return createInstance(root, state.instances, { ...draft, directory });
+  }
+  if (type === 'importUrl') return importUrl(root, state.instances, text(request.url), status);
+  if (type === 'modrinthInstall')
+    return installModrinth(root, state.instances, modrinthId(request.projectId), modrinthId(request.versionId), status);
+  const result = await dialog.showOpenDialog(window, {
+    title: 'Import a modpack or instance export',
+    filters: [{ name: 'Modpacks and instance exports', extensions: ['mrpack', 'zip'] }],
+    properties: ['openFile'],
+  });
+  return result.filePaths[0] ? importArchive(root, state.instances, result.filePaths[0], status) : null;
 }
 async function command(input: unknown): Promise<Snapshot> {
   const request = record(input);
@@ -134,7 +155,7 @@ async function command(input: unknown): Promise<Snapshot> {
       await verifyJava(next.javaPath);
       await atomic(path.join(root, 'settings.json'), JSON.stringify(next, null, 2));
       state.settings = next;
-      status('64-bit Java 8 override saved');
+      status('Java override saved');
     }
     return publish();
   }
@@ -145,21 +166,37 @@ async function command(input: unknown): Promise<Snapshot> {
     status('Signed out');
     return state;
   }
-  const instance = instances.find(item => item.id === request.id);
+  const instance = state.instances.find(item => item.id === request.id);
   if (type === 'folder') {
     if (!instance) throw new Error('Unknown instance.');
     const error = await shell.openPath(gameDirectory(root, instance));
     if (error) throw new Error(error);
     return state;
   }
-  if (!['login', 'install', 'launch'].includes(type)) throw new Error('Unknown command.');
-  if (type !== 'login' && !instance) throw new Error('Unknown instance.');
-  if (state.running && type !== 'login')
+  if (type === 'remove') {
+    if (!instance) throw new Error('Unknown instance.');
+    if (state.running === instance.id) throw new Error('Close the running game before removing its instance.');
+    await removeInstance(root, instance);
+    state.instances = await loadInstances(root, log);
+    status(`${instance.name} removed`);
+    return state;
+  }
+  const creating = ['create', 'importFile', 'importUrl', 'modrinthInstall'].includes(type);
+  if (!creating && !['login', 'install', 'launch'].includes(type)) throw new Error('Unknown command.');
+  if (['install', 'launch'].includes(type) && !instance) throw new Error('Unknown instance.');
+  if (state.running && ['install', 'launch'].includes(type))
     throw new Error('Close the running game before installing or launching another instance.');
   state.busy = true;
   publish();
   try {
-    if (type === 'login') {
+    if (creating) {
+      const created = await createFrom(request, type);
+      if (created) {
+        state.instances = await loadInstances(root, log);
+        state.selected = created.id;
+        status(`${created.name} is ready`);
+      }
+    } else if (type === 'login') {
       if (!safeStorage.isEncryptionAvailable()) throw new Error(storageHint);
       loginController = new AbortController();
       status('Waiting for Microsoft sign-in');
@@ -180,7 +217,13 @@ async function command(input: unknown): Promise<Snapshot> {
       if (type === 'launch' && (!session || session.clientId !== state.settings.clientId))
         throw new Error('Sign in with Microsoft before launching.');
       let installation = await install(root, instance, status);
-      if (instance.profile === 'mcsr') installation = await withFabric(root, instance, installation, status);
+      let loaderVersion = instance.loaderVersion;
+      if (instance.pack?.source === 'mcsr') loaderVersion = await installMcsr(root, instance, status);
+      if (instance.loader !== 'vanilla') {
+        if (!loaderVersion) throw new Error('The instance does not declare a loader version.');
+        const profile = await installLoader(root, instance.loader, instance.version, loaderVersion, status);
+        installation = mergeLoader(installation, profile);
+      }
       const major = installation.metadata.javaVersion?.majorVersion ?? 8;
       const java = state.settings.javaPath || (await installRuntime(root, installation.metadata.javaVersion, status));
       await verifyJava(java, major);
@@ -278,6 +321,11 @@ else {
         if (event.sender !== window.webContents || event.senderFrame !== window.webContents.mainFrame)
           throw new Error('Untrusted command sender.');
         return command(input);
+      });
+      ipcMain.handle('comet:query', (event, input: unknown) => {
+        if (event.sender !== window.webContents || event.senderFrame !== window.webContents.mainFrame)
+          throw new Error('Untrusted query sender.');
+        return query(input);
       });
       window.on('close', event => {
         if (state.running || state.busy) {

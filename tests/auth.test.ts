@@ -25,7 +25,7 @@ test('refresh performs Xbox, XSTS, Minecraft and entitlement/profile checks', as
   const responses = [
     { access_token: 'msa', refresh_token: 'rotated' },
     { Token: 'xbox' },
-    { Token: 'xsts', DisplayClaims: { xui: [{ uhs: 'hash' }] } },
+    { Token: 'xsts', DisplayClaims: { xui: [{ uhs: 'hash', xid: '2535xuid' }] } },
     { access_token: 'minecraft' },
     { items: [{ name: 'game_minecraft' }] },
     { id: 'a'.repeat(32), name: 'Tester' },
@@ -40,9 +40,11 @@ test('refresh performs Xbox, XSTS, Minecraft and entitlement/profile checks', as
     clientId: 'id',
     refreshToken: 'old',
     accessToken: 'expired',
+    xuid: '',
   });
   expect(result.refreshToken).toBe('rotated');
   expect(result.accessToken).toBe('minecraft');
+  expect(result.xuid).toBe('2535xuid');
   expect(requests).toHaveLength(6);
   expect(requests[4]).toContain('entitlements');
 });
@@ -54,6 +56,7 @@ test('approval failures do not leak response bodies', async () => {
       clientId: 'id',
       refreshToken: 'old',
       accessToken: 'expired',
+      xuid: '',
     }),
   ).rejects.toThrow('HTTP 403');
 });

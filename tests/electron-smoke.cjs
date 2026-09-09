@@ -75,9 +75,27 @@ async function main() {
     await click('.instance.mcsr');
     assert.match(await evaluate('document.querySelector(".hero h2").textContent'), /Speedrunning/);
     await click('.tabs button:nth-child(2)');
-    await until('document.querySelectorAll(".instance").length', 2);
+    await until('document.querySelectorAll(".instance").length', 3);
+    await click('.tabs button:nth-child(3)');
+    await until('document.querySelectorAll(".instance").length', 0);
+    assert.match(await evaluate('document.querySelector(".empty").textContent'), /No custom instances/);
     await click('.tabs button:first-child');
     await click('.instance:first-child');
+    assert.match(await evaluate('document.querySelector(".details dl").textContent'), /Comet shared folder/);
+    await click('.new');
+    await until('document.querySelector("h1")?.textContent', 'New instance');
+    await click('.tabs button:nth-child(2)');
+    assert.match(await evaluate('document.querySelector(".settings-section").textContent'), /Prism Launcher/);
+    const badDraft = await evaluate(
+      `window.comet.invoke({ type: 'create', draft: { name: 'x', version: '../1', loader: 'vanilla', directory: 'isolated' } }).then(() => '', error => error.message)`,
+    );
+    assert.match(badDraft, /Invalid Minecraft version/);
+    const badQuery = await evaluate(
+      `window.comet.query({ type: 'modrinthVersions', projectId: '../x' }).then(() => '', error => error.message)`,
+    );
+    assert.match(badQuery, /Invalid Modrinth id/);
+    await click('[aria-label="library"]');
+    await until('document.querySelectorAll(".instance").length', 3);
     const screenshot = await window.webContents.capturePage();
     const screenshotPath = path.join(temporaryRoot, 'comet-launchpad.png');
     await writeFile(screenshotPath, screenshot.toPNG());
@@ -102,7 +120,7 @@ async function main() {
     assert.match(await evaluate('document.querySelector("pre").textContent'), /No game output/);
     assert.deepEqual(errors, []);
     console.log(
-      `Electron smoke passed: navigation, window controls, selection, filtering, settings IPC, auth setup error, traversal rejection, console. Screenshot: ${screenshotPath}`,
+      `Electron smoke passed: navigation, window controls, selection, filtering, new-instance page, draft and query validation, settings IPC, auth setup error, traversal rejection, console. Screenshot: ${screenshotPath}`,
     );
   } finally {
     clearTimeout(timeout);

@@ -3,14 +3,16 @@ import path from 'node:path';
 import os from 'node:os';
 import assert from 'node:assert/strict';
 import { install, installRuntime, verifyJava } from '../src/main/minecraft';
-import { withFabric } from '../src/main/fabric';
-import { readdir as list } from 'node:fs/promises';
+import { installLoader, mergeLoader } from '../src/main/loader';
+import { installMcsr } from '../src/main/mcsr';
 import { instances } from '../src/main/core';
+import { loadInstances } from '../src/main/instances';
 
 const temporaryRoot = path.join(os.tmpdir(), 'redsun');
 await mkdir(temporaryRoot, { recursive: true });
 const root = await mkdtemp(path.join(temporaryRoot, 'comet-install-'));
 try {
+  await loadInstances(root, message => console.log(message));
   for (const instance of instances) {
     let last = '';
     const report = (message: string) => {
@@ -24,16 +26,25 @@ try {
     console.log(
       `${instance.version}: full client, libraries, assets, logging configuration and native extraction passed on ${process.platform}`,
     );
-    if (instance.profile === 'mcsr') {
-      result = await withFabric(root, instance, result, report);
+    if (instance.pack?.source === 'mcsr') {
+      const loader = await installMcsr(root, instance, report);
+      result = mergeLoader(result, await installLoader(root, 'fabric', instance.version, loader, report));
       assert(result.classpath.some(entry => /fabric-loader-[\d.]+\.jar$/.test(entry)));
       assert.equal(result.metadata.mainClass, 'net.fabricmc.loader.impl.launch.knot.KnotClient');
-      const mods = await list(path.join(result.game, 'mods'));
+      const mods = await readdir(path.join(result.game, 'mods'));
       assert(mods.some(name => /^mcsrranked-/.test(name)) && mods.length >= 10);
-      console.log(`${instance.version}: Fabric loader, libraries and ${mods.length} MCSR pack mods installed`);
+      const game = (await readdir(result.game)).filter(name => name !== 'mods');
+      console.log(
+        `${instance.version}: Fabric loader, libraries and ${mods.length} MCSR pack mods installed; other game entries: ${game.join(', ') || 'none'}`,
+      );
     }
     assert.equal(result.metadata.javaVersion?.majorVersion, 8);
   }
+  assert.equal(
+    (await stat(path.join(root, 'shared', 'comet', '.minecraft'))).isDirectory(),
+    true,
+    'Comet PvP versions share one game folder',
+  );
   const java = await installRuntime(root, { component: 'jre-legacy', majorVersion: 8 }, message =>
     console.log(message),
   );
