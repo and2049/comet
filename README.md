@@ -2,7 +2,7 @@
 
 **NOT AN OFFICIAL MINECRAFT PRODUCT. NOT APPROVED BY OR ASSOCIATED WITH MOJANG OR MICROSOFT.**
 
-A Minecraft Java launcher for Windows x64, Linux x64 and macOS, built with Electron, React and TypeScript. Inspired by Prism's isolated instances and Lunar's interface.
+A Minecraft Java Client.
 
 Maintained by [and2049](https://github.com/and2049). Contact: [res9nd@gmail.com](mailto:res9nd@gmail.com).
 
