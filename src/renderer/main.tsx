@@ -15,6 +15,7 @@ import type {
   Snapshot,
   VersionInfo,
 } from '../shared';
+import { optifineLabels } from '../shared';
 import './style.css';
 
 declare global {
@@ -51,6 +52,8 @@ const preview: Snapshot = {
     },
   ],
   selected: null,
+  optifine: [],
+  client: [],
   settings: { clientId: '', javaPath: '', memoryMb: 4096, minimizeOnLaunch: true },
   account: null,
   running: null,
@@ -93,7 +96,7 @@ function loaderLabel(instance: Instance): string {
 function note(instance: Instance): string {
   if (instance.profile === 'mcsr') return 'Mods follow the upstream MCSR Ranked pack. Mods you add are kept.';
   if (instance.profile === 'pvp')
-    return 'Built-in PvP mods are not included yet. Settings and worlds are shared between the Comet 1.7.10 and 1.8.9 instances.';
+    return 'Launches with OptiFine, fetched from optifine.net onto this computer, and the Comet client from GitHub releases. Settings and worlds are shared between the Comet 1.7.10 and 1.8.9 instances.';
   if (instance.pack)
     return `Installed from ${instance.pack.name}${instance.pack.versionId ? ` ${instance.pack.versionId}` : ''}.`;
   if (instance.directory === 'official')
@@ -488,6 +491,22 @@ function App(): React.JSX.Element {
                       <dt>Game folder</dt>
                       <dd>{folderNames[selected.directory]}</dd>
                     </div>
+                    {selected.profile === 'pvp' && (
+                      <>
+                        <div>
+                          <dt>OptiFine</dt>
+                          <dd>
+                            {state.optifine.includes(selected.version)
+                              ? `${optifineLabels[selected.version]} ready`
+                              : 'Not downloaded'}
+                          </dd>
+                        </div>
+                        <div>
+                          <dt>Comet client</dt>
+                          <dd>{state.client.includes(selected.version) ? 'Ready' : 'Not downloaded'}</dd>
+                        </div>
+                      </>
+                    )}
                     <div>
                       <dt>Memory</dt>
                       <dd>{state.settings.memoryMb / 1024} GB</dd>
@@ -508,6 +527,19 @@ function App(): React.JSX.Element {
                     <button disabled={locked} onClick={() => void run({ type: 'folder', id: selected.id })}>
                       Open game folder <span>↗</span>
                     </button>
+                    {selected.profile === 'pvp' && (
+                      <>
+                        <button
+                          disabled={locked || !!state.running}
+                          onClick={() => void run({ type: 'optifine', id: selected.id })}
+                        >
+                          Get OptiFine
+                        </button>
+                        <button disabled={locked} onClick={() => void run({ type: 'optifineFile', id: selected.id })}>
+                          Add OptiFine jar
+                        </button>
+                      </>
+                    )}
                     {selected.profile === 'custom' && (
                       <button
                         className={confirmRemove ? 'danger' : ''}
@@ -648,8 +680,8 @@ function App(): React.JSX.Element {
                 {mode === 'import' && (
                   <div className="settings-section">
                     <p>
-                      Modrinth modpacks (.mrpack) and Prism Launcher, PolyMC or MultiMC exports (.zip). CurseForge and
-                      Technic are not supported yet.
+                      Modrinth modpacks (.mrpack) and Prism Launcher, PolyMC or MultiMC exports (.zip). Comet uses
+                      Modrinth only; CurseForge and Technic are not supported.
                     </p>
                     <label>
                       Local file
@@ -723,7 +755,7 @@ function App(): React.JSX.Element {
                             ))}
                           </select>
                         </label>
-                        <p className="hint">Forge and NeoForge versions cannot be installed yet.</p>
+                        <p className="hint">Comet installs Fabric and Quilt packs only.</p>
                         <button
                           className="primary"
                           disabled={locked || !packVersion}

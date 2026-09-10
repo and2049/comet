@@ -1,0 +1,18 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "comet.mc1710.mixin",
+  "refmap": "comet.refmap.json",
+  "compatibilityLevel": "JAVA_8",
+  "client": [
+    "MinecraftMixin",
+    "MinecraftAccessor",
+    "GuiIngameMixin",
+    "GuiButtonMixin",
+    "GuiScreenMixin",
+    "GuiSlotMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

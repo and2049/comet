@@ -1,0 +1,23 @@
+name: Release
+on:
+  push:
+    tags: ['v*.*.*']
+permissions:
+  contents: write
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: gradle/actions/setup-gradle@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: ./gradlew build --no-daemon
+        working-directory: client
+      - run: bun scripts/client-manifest.ts "$GITHUB_REF_NAME" client.json
+      - run: gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --generate-notes client/build/dist/comet-client-1.8.9.jar client/build/dist/comet-client-1.7.10.jar client.json
+        env:
+          GH_TOKEN: ${{ github.token }}

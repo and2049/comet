@@ -2,3 +2,6 @@ dist
 node_modules
 bun.lock
 .redsun
+client/build
+client/.gradle
+client/run

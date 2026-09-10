@@ -80,8 +80,12 @@ describe('modpack index handling', () => {
       version: '1.20.1',
       loader: 'vanilla',
     });
-    expect(() => packTarget({ ...index, dependencies: { minecraft: '1.20.1', forge: '47.2.0' } })).toThrow('Forge');
-    expect(() => packTarget({ ...index, dependencies: { minecraft: '1.21', neoforge: '21.0.1' } })).toThrow('Forge');
+    expect(() => packTarget({ ...index, dependencies: { minecraft: '1.20.1', forge: '47.2.0' } })).toThrow(
+      'Fabric and Quilt',
+    );
+    expect(() => packTarget({ ...index, dependencies: { minecraft: '1.21', neoforge: '21.0.1' } })).toThrow(
+      'Fabric and Quilt',
+    );
     expect(() => packTarget({ ...index, dependencies: {} })).toThrow('Minecraft version');
   });
   test('rewrites GitHub raw links and rejects untrusted mod hosts', () => {

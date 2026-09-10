@@ -38,7 +38,7 @@ export function prismComponents(value: unknown): PackTarget {
     else if (uid in loaderUids) {
       loader = loaderUids[uid];
       loaderVersion = declared;
-    } else throw new Error(`Component ${uid} is not supported yet.`);
+    } else throw new Error(`Component ${uid} is out of scope. Comet supports Fabric and Quilt only.`);
   }
   if (!version || !versionPattern.test(version))
     throw new Error('The instance export does not declare a Minecraft version.');

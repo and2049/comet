@@ -56,7 +56,7 @@ export function packTarget(index: PackIndex): PackTarget {
   const version = index.dependencies.minecraft;
   if (!version) throw new Error('The modpack does not declare a Minecraft version.');
   if (index.dependencies.forge || index.dependencies.neoforge)
-    throw new Error('Forge and NeoForge packs are not supported yet.');
+    throw new Error('Comet installs Fabric and Quilt modpacks only.');
   const fabric = index.dependencies['fabric-loader'];
   const quilt = index.dependencies['quilt-loader'];
   if (fabric) return { version, loader: 'fabric', loaderVersion: fabric };

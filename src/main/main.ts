@@ -12,6 +12,7 @@ import { installMcsr } from './mcsr.js';
 import { createInstance, loadInstances, removeInstance } from './instances.js';
 import { importArchive, importUrl } from './imports.js';
 import { installModrinth, modrinthId, projectVersions, searchModpacks } from './modrinth.js';
+import { addOptifineFile, availability, fetchOptifine, mergeClient, prepareClient } from './client.js';
 import type { Instance, Snapshot } from '../shared.js';
 
 app.setName('Comet');
@@ -27,6 +28,8 @@ const storageHint =
 const state: Snapshot = {
   instances: [],
   selected: null,
+  optifine: [],
+  client: [],
   settings: defaults,
   account: null,
   running: null,
@@ -58,6 +61,14 @@ async function atomic(file: string, contents: string | Buffer): Promise<void> {
     await rm(temporary, { force: true });
   }
 }
+function devClientDir(): string | undefined {
+  if (app.isPackaged) return undefined;
+  return process.env.COMET_CLIENT_DIR || path.join(here, '..', '..', 'client', 'build', 'dist');
+}
+async function refreshClient(): Promise<void> {
+  const versions = state.instances.filter(item => item.profile === 'pvp').map(item => item.version);
+  Object.assign(state, await availability(root, versions, devClientDir()));
+}
 async function saveSession(next: Session): Promise<void> {
   if (!safeStorage.isEncryptionAvailable()) throw new Error(`${storageHint} Sign-in was not saved.`);
   await atomic(path.join(root, 'account.bin'), safeStorage.encryptString(JSON.stringify(next)));
@@ -83,6 +94,7 @@ async function initialize(): Promise<void> {
     if ((error as NodeJS.ErrnoException).code !== 'ENOENT') log('Saved account could not be unlocked. Sign in again.');
   }
   state.instances = await loadInstances(root, log);
+  await refreshClient();
 }
 async function query(input: unknown): Promise<unknown> {
   const request = record(input);
@@ -173,6 +185,20 @@ async function command(input: unknown): Promise<Snapshot> {
     if (error) throw new Error(error);
     return state;
   }
+  if (type === 'optifineFile') {
+    if (instance?.profile !== 'pvp') throw new Error('Unknown instance.');
+    const result = await dialog.showOpenDialog(window, {
+      title: `Choose the OptiFine jar for ${instance.version}`,
+      filters: [{ name: 'OptiFine jar', extensions: ['jar'] }],
+      properties: ['openFile'],
+    });
+    if (result.filePaths[0]) {
+      await addOptifineFile(root, instance.version, result.filePaths[0]);
+      await refreshClient();
+      status(`OptiFine for ${instance.version} added`);
+    }
+    return publish();
+  }
   if (type === 'remove') {
     if (!instance) throw new Error('Unknown instance.');
     if (state.running === instance.id) throw new Error('Close the running game before removing its instance.');
@@ -182,8 +208,9 @@ async function command(input: unknown): Promise<Snapshot> {
     return state;
   }
   const creating = ['create', 'importFile', 'importUrl', 'modrinthInstall'].includes(type);
-  if (!creating && !['login', 'install', 'launch'].includes(type)) throw new Error('Unknown command.');
+  if (!creating && !['login', 'install', 'launch', 'optifine'].includes(type)) throw new Error('Unknown command.');
   if (['install', 'launch'].includes(type) && !instance) throw new Error('Unknown instance.');
+  if (type === 'optifine' && instance?.profile !== 'pvp') throw new Error('Unknown instance.');
   if (state.running && ['install', 'launch'].includes(type))
     throw new Error('Close the running game before installing or launching another instance.');
   state.busy = true;
@@ -213,6 +240,10 @@ async function command(input: unknown): Promise<Snapshot> {
       );
       await saveSession(next);
       status(`Signed in as ${next.account.name}`);
+    } else if (type === 'optifine' && instance) {
+      await fetchOptifine(root, instance.version, status);
+      await refreshClient();
+      status(`OptiFine for ${instance.version} is ready`);
     } else if (instance) {
       if (type === 'launch' && (!session || session.clientId !== state.settings.clientId))
         throw new Error('Sign in with Microsoft before launching.');
@@ -223,6 +254,13 @@ async function command(input: unknown): Promise<Snapshot> {
         if (!loaderVersion) throw new Error('The instance does not declare a loader version.');
         const profile = await installLoader(root, instance.loader, instance.version, loaderVersion, status);
         installation = mergeLoader(installation, profile);
+      }
+      const notes: string[] = [];
+      if (instance.profile === 'pvp') {
+        const parts = await prepareClient(root, instance.version, status, devClientDir());
+        notes.push(...parts.warnings);
+        await refreshClient();
+        installation = mergeClient(installation, parts);
       }
       const major = installation.metadata.javaVersion?.majorVersion ?? 8;
       const java = state.settings.javaPath || (await installRuntime(root, installation.metadata.javaVersion, status));
@@ -238,7 +276,8 @@ async function command(input: unknown): Promise<Snapshot> {
         });
         state.running = instance.id;
         state.logs = [];
-        status(`Minecraft ${instance.version} is running`);
+        notes.forEach(log);
+        status(`Minecraft ${instance.version} is running${notes.length ? ' with warnings, see the console' : ''}`);
         for (const stream of [child.stdout, child.stderr]) {
           if (stream) createInterface({ input: stream }).on('line', line => log(redact(line, secrets)));
         }

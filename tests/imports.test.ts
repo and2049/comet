@@ -39,7 +39,7 @@ describe('Prism export parsing', () => {
       prismComponents(
         components({ uid: 'net.minecraft', version: '1.20.1' }, { uid: 'net.minecraftforge', version: '47.2.0' }),
       ),
-    ).toThrow('net.minecraftforge is not supported');
+    ).toThrow('net.minecraftforge is out of scope');
     expect(() => prismComponents(components({ uid: 'org.lwjgl3', version: '3.3.3' }))).toThrow('Minecraft version');
     expect(() =>
       prismComponents(components({ uid: 'net.minecraft', version: '1.20.1' }, { uid: 'net.fabricmc.fabric-loader' })),
@@ -147,7 +147,7 @@ describe('archive import', () => {
         },
       ]),
     );
-    await expect(importArchive(root, [], archive, () => undefined)).rejects.toThrow('not supported');
+    await expect(importArchive(root, [], archive, () => undefined)).rejects.toThrow('out of scope');
     await writeFile(archive, zip([{ name: 'manifest.json', content: '{}' }]));
     await expect(importArchive(root, [], archive, () => undefined)).rejects.toThrow(importHint);
     expect(await readdir(path.join(root, 'instances')).catch(() => [])).toEqual([]);

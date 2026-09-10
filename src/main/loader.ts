@@ -76,12 +76,19 @@ export async function installLoader(
     classpath,
   };
 }
+export function vanillaArguments(
+  metadata: Installation['metadata'],
+): NonNullable<Installation['metadata']['arguments']> {
+  return (
+    metadata.arguments ?? {
+      jvm: ['-Djava.library.path=${natives_directory}', '-cp', '${classpath}'],
+      game: metadata.minecraftArguments?.split(/\s+/) ?? [],
+    }
+  );
+}
 export function mergeLoader(installation: Installation, profile: LoaderProfile): Installation {
   const { metadata } = installation;
-  const vanilla = metadata.arguments ?? {
-    jvm: ['-Djava.library.path=${natives_directory}', '-cp', '${classpath}'],
-    game: metadata.minecraftArguments?.split(/\s+/) ?? [],
-  };
+  const vanilla = vanillaArguments(metadata);
   return {
     ...installation,
     classpath: [...profile.classpath, ...installation.classpath],

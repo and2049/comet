@@ -12,6 +12,7 @@
     "test:electron": "bun run build && bun tests/run-electron-smoke.ts",
     "test:metadata": "bun tests/metadata-live.ts",
     "test:install": "bun tests/install-live.ts",
+    "test:client": "bun tests/client-live.ts",
     "typecheck": "tsc -p tsconfig.main.json --noEmit && tsc --noEmit",
     "preview": "vite --host 127.0.0.1",
     "format": "prettier --write .",

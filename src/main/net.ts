@@ -23,6 +23,8 @@ export const packHosts = [
   'redlime.github.io',
 ];
 export const modrinthHosts = ['api.modrinth.com', 'cdn.modrinth.com'];
+export const optifineHosts = ['optifine.net'];
+export const releaseHosts = ['github.com'];
 export function trustedUrl(value: string, hosts: string[]): string {
   const url = new URL(value);
   if (url.protocol !== 'https:' || url.username || url.password || url.port || !hosts.includes(url.hostname))
@@ -42,12 +44,12 @@ function headers(init?: RequestInit): Headers {
   result.set('User-Agent', userAgent);
   return result;
 }
-async function request(url: string, init?: RequestInit): Promise<Response> {
+async function request(url: string, init?: RequestInit, redirect: RequestRedirect = 'error'): Promise<Response> {
   const timeout = AbortSignal.timeout(30000);
   const response = await fetch(url, {
     ...init,
     headers: headers(init),
-    redirect: 'error',
+    redirect,
     signal: init?.signal ? AbortSignal.any([init.signal, timeout]) : timeout,
   });
   if (!response.ok)
@@ -56,8 +58,8 @@ async function request(url: string, init?: RequestInit): Promise<Response> {
     );
   return response;
 }
-export async function json(url: string, init?: RequestInit): Promise<unknown> {
-  return (await request(url, init)).json();
+export async function json(url: string, init?: RequestInit, redirect: RequestRedirect = 'error'): Promise<unknown> {
+  return (await request(url, init, redirect)).json();
 }
 export async function remoteText(url: string): Promise<string> {
   return (await request(url)).text();

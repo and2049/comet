@@ -118,7 +118,7 @@ export async function installModrinth(
 ): Promise<Instance> {
   const version = (await versions(projectId)).find(item => item.id === modrinthId(versionId));
   if (!version) throw new Error('Unknown modpack version.');
-  if (!version.supported) throw new Error('Forge and NeoForge packs are not supported yet.');
+  if (!version.supported) throw new Error('Comet installs Fabric and Quilt modpacks only.');
   const project = record(await json(trustedUrl(`${api}/project/${modrinthId(projectId)}`, modrinthHosts)));
   const title = cleanName(project.title, 'Modrinth modpack');
   const archive = path.join(root, 'cache', `import-${randomUUID()}.mrpack`);

@@ -35,9 +35,12 @@ export interface Account {
   id: string;
   name: string;
 }
+export const optifineLabels: Record<string, string> = { '1.8.9': 'HD U M5', '1.7.10': 'HD U E7' };
 export interface Snapshot {
   instances: Instance[];
   selected: string | null;
+  optifine: string[];
+  client: string[];
   settings: Settings;
   account: Account | null;
   running: string | null;
@@ -59,6 +62,8 @@ export type Command =
   | { type: 'launch'; id: string }
   | { type: 'folder'; id: string }
   | { type: 'remove'; id: string }
+  | { type: 'optifine'; id: string }
+  | { type: 'optifineFile'; id: string }
   | { type: 'create'; draft: Draft }
   | { type: 'importFile' }
   | { type: 'importUrl'; url: string }
