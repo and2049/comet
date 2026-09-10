@@ -308,7 +308,9 @@ public final class ModMenu extends Screen {
             Widgets.pill(canvas, controlsX, rowY + 5, 16, 16, Widgets.HOVER);
             Widgets.pill(canvas, controlsX + 54, rowY + 5, 16, 16, Widgets.HOVER);
             Text.drawCentered(canvas, "-", controlsX + 8, rowY + 9, 7, 0xFFDDDDDD);
-            Text.drawCentered(canvas, options.number(option) + "x", controlsX + 35, rowY + 9, 7, 0xFFDDDDDD);
+            String value = option.display(options.number(option));
+            float valueSize = Text.fit(canvas, value, 7, 34, 5);
+            Text.drawCentered(canvas, value, controlsX + 35, rowY + 9, valueSize, 0xFFDDDDDD);
             Text.drawCentered(canvas, "+", controlsX + 62, rowY + 9, 7, 0xFFDDDDDD);
             rowY += OPTION_ROW;
         }

@@ -48,6 +48,13 @@ final class ModIcons {
                 g.drawLine(48, 9, 48, 20);
                 g.rotate(Math.PI / 4, 48, 48);
             }
+        } else if ("motionBlur".equals(id)) {
+            g.setColor(new Color(0x60E7E9E7, true));
+            g.drawArc(12, 30, 36, 36, 60, 240);
+            g.setColor(new Color(0xA0E7E9E7, true));
+            g.drawArc(28, 30, 36, 36, 60, 240);
+            g.setColor(new Color(0xE7E9E7));
+            g.drawOval(46, 30, 36, 36);
         } else if ("cps".equals(id)) {
             g.rotate(Math.PI / 7, 48, 48);
             g.drawRoundRect(25, 16, 46, 66, 38, 38);

@@ -10,6 +10,8 @@ import comet.core.ui.Screen;
 import comet.core.ui.TestCanvas;
 import comet.core.platform.RawMouse;
 import comet.core.platform.BorderlessWindow;
+import comet.core.render.Reprojection;
+import comet.core.render.BlurVelocity;
 import java.io.File;
 import java.lang.reflect.Proxy;
 import java.nio.charset.StandardCharsets;
@@ -36,6 +38,7 @@ public final class CoreTests {
             rawMouse();
             borderless();
             displayMods(root.resolve("display"));
+            motionBlur(root.resolve("blur"));
             System.out.println("Comet core: " + assertions + " assertions passed");
         } finally {
             try (Stream<Path> files = Files.walk(root)) {
@@ -457,6 +460,105 @@ public final class CoreTests {
         check(lighting.number(Lighting.MULTIPLIER) == previous - 1, "Multiplier minus button changes the numeric setting");
         host.screen.mouseDown(365, 174, 0);
         check(lighting.number(Lighting.MULTIPLIER) == previous, "Multiplier plus button changes the numeric setting");
+    }
+
+    private static void motionBlur(Path root) throws Exception {
+        Host host = new Host(root);
+        CometClient client = new CometClient(host.bridge);
+        MotionBlur blur = (MotionBlur) find(client, "motionBlur");
+        check(!client.mods().isEnabled(blur) && blur.category() == Category.VISUAL, "Motion blur starts disabled as a visual mod");
+        host.version = "1.7.10";
+        check(find(new CometClient(host.bridge), "motionBlur") != null, "Motion blur is registered on legacy PvP too");
+        check(blur.number(MotionBlur.ALGORITHM) == MotionBlur.HYBRID && blur.number(MotionBlur.STRENGTH) == 5, "Hybrid at medium strength is the default");
+        check(MotionBlur.ALGORITHM.display(3).equals("Hybrid") && Lighting.MULTIPLIER.display(2).equals("2x")
+                && MotionBlur.STRENGTH.display(5).equals("5"), "Named algorithms and numeric units display correctly");
+        NumberOption futureAlgorithms = new NumberOption("algorithm", "Algorithm", 3, 3, 4, "", "Hybrid", "Future");
+        check(futureAlgorithms.display(4).equals("Future") && futureAlgorithms.clamp(5) == 4,
+                "Named selectors retain navigation and bounds for future algorithms");
+        blur.setNumber(MotionBlur.ALGORITHM, 9);
+        check(blur.number(MotionBlur.ALGORITHM) == MotionBlur.HYBRID, "Algorithm is bounded to the implemented set");
+        blur.setNumber(MotionBlur.STRENGTH, 0);
+        check(blur.number(MotionBlur.STRENGTH) == 1, "Strength never drops to an invisible zero");
+        for (int oldAlgorithm = 1; oldAlgorithm <= 2; oldAlgorithm++) {
+            client.mods().settings().setNumber(blur.id(), MotionBlur.ALGORITHM.id, oldAlgorithm);
+            check(blur.number(MotionBlur.ALGORITHM) == MotionBlur.HYBRID, "Saved rejected algorithm resolves to Hybrid: " + oldAlgorithm);
+            MotionBlur restored = (MotionBlur) find(new CometClient(host.bridge), "motionBlur");
+            check(restored.number(MotionBlur.ALGORITHM) == MotionBlur.HYBRID, "Rejected selection resolves after restart: " + oldAlgorithm);
+        }
+        blur.setNumber(MotionBlur.ALGORITHM, MotionBlur.HYBRID - 1);
+        check(blur.number(MotionBlur.ALGORITHM) == MotionBlur.HYBRID, "Selector cannot navigate to a rejected algorithm");
+        blur.setNumber(MotionBlur.STRENGTH, 9);
+        check(blur.trailStrength() == 5 && blur.shutterMs() == MotionBlur.trailMs(9), "Hybrid keeps its accepted shutter and half-strength trail");
+        check(MotionBlur.weight(5, 0) == 1F && MotionBlur.weight(5, 1e9) == 0F, "Fresh history is kept whole and stale history vanishes");
+        for (int strength = 1; strength <= 10; strength++) {
+            float twoShort = MotionBlur.weight(strength, 4) * MotionBlur.weight(strength, 4);
+            check(Math.abs(twoShort - MotionBlur.weight(strength, 8)) < 1e-5, "Trail decay is frame-rate independent at strength " + strength);
+            check(strength == 1 || MotionBlur.weight(strength, 16) > MotionBlur.weight(strength - 1, 16), "Higher strength keeps more history at " + strength);
+        }
+        check(Math.abs(Math.pow(MotionBlur.weight(5, 1000.0 / 300), 5) - MotionBlur.weight(5, 1000.0 / 60)) < 1e-6,
+                "Every-frame history has equal decay at 60 and 300 fps");
+        check(MotionBlur.weight(1, 16.7) < 0.3F, "Minimum strength is a subtle trail at 60 fps");
+        float[] projection = perspective(70, 16F / 9F);
+        float[] still = Reprojection.matrix(projection, rotationY(0.4F), projection, rotationY(0.4F));
+        for (float[] point : new float[][] {{0, 0}, {0.7F, -0.3F}, {-1, 1}}) {
+            float[] mapped = Reprojection.project(still, point[0], point[1]);
+            check(Math.abs(mapped[0] - point[0]) < 1e-5 && Math.abs(mapped[1] - point[1]) < 1e-5, "A still camera reprojects every pixel onto itself");
+        }
+        float yaw = 0.05F;
+        float[] turned = Reprojection.matrix(projection, rotationY(0), projection, rotationY(yaw));
+        float[] centre = Reprojection.project(turned, 0, 0);
+        check(Math.abs(centre[0] - projection[0] * Math.tan(yaw)) < 1e-5 && Math.abs(centre[1]) < 1e-6, "Turning right maps the centre pixel to its previous position on the right");
+        float[] moved = rotationY(yaw);
+        moved[12] = 3F;
+        moved[13] = -1.5F;
+        moved[14] = 40F;
+        float[] translated = Reprojection.project(Reprojection.matrix(projection, rotationY(0), projection, moved), 0, 0);
+        check(Math.abs(translated[0] - centre[0]) < 1e-6 && Math.abs(translated[1] - centre[1]) < 1e-6, "Camera translation does not affect the rotation-only reprojection");
+        float[] zoomed = Reprojection.project(Reprojection.matrix(perspective(30, 16F / 9F), rotationY(0), projection, rotationY(0)), 0.5F, 0.5F);
+        check(zoomed[0] > 0.5F && zoomed[1] > 0.5F, "A field-of-view change produces a radial zoom blur");
+        BlurVelocity velocity = new BlurVelocity();
+        float[] shift = BlurVelocity.identity();
+        shift[8] = 0.02F;
+        float[] shortFrame = velocity.update(shift, 4, 40);
+        velocity.reset();
+        shift[8] = 0.08F;
+        float[] longFrame = velocity.update(shift, 16, 40);
+        check(Math.abs(shortFrame[8] - longFrame[8]) < 1e-6, "Constant camera speed yields equal shutter displacement across frame rates");
+        shift[8] = 0.16F;
+        float[] spike = velocity.update(shift, 16, 40);
+        check(spike[8] > longFrame[8] && spike[8] < 0.4F, "Camera velocity filters isolated timing spikes");
+        for (int i = 0; i < 20; i++) spike = velocity.update(BlurVelocity.identity(), 16, 40);
+        check(Math.abs(spike[8]) < 1e-6, "Blur settles promptly when camera movement stops");
+        float[] stale = velocity.update(shift, 150, 40);
+        check(stale[8] == 0F, "A stalled frame resets velocity instead of smearing a camera cut");
+        shift[8] = Float.NaN;
+        check(velocity.update(shift, 16, 40)[8] == 0F, "Non-finite camera transforms cannot poison subsequent frames");
+        shift[8] = 0.08F;
+        check(Math.abs(velocity.update(shift, 16, 40)[8] - 0.2F) < 1e-6, "Velocity recovers immediately after invalid history");
+    }
+
+    private static float[] perspective(float fovDegrees, float aspect) {
+        float f = (float) (1 / Math.tan(Math.toRadians(fovDegrees) / 2));
+        float near = 0.05F;
+        float far = 512F;
+        float[] matrix = new float[16];
+        matrix[0] = f / aspect;
+        matrix[5] = f;
+        matrix[10] = (far + near) / (near - far);
+        matrix[11] = -1F;
+        matrix[14] = 2 * far * near / (near - far);
+        return matrix;
+    }
+
+    private static float[] rotationY(float angle) {
+        float[] matrix = new float[16];
+        matrix[0] = (float) Math.cos(angle);
+        matrix[2] = (float) -Math.sin(angle);
+        matrix[5] = 1F;
+        matrix[8] = (float) Math.sin(angle);
+        matrix[10] = (float) Math.cos(angle);
+        matrix[15] = 1F;
+        return matrix;
     }
 
     private static void presets(Path root) throws Exception {

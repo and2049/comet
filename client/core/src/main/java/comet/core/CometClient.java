@@ -14,12 +14,14 @@ import comet.core.mod.Coordinates;
 import comet.core.mod.Keystrokes;
 import comet.core.mod.PingCounter;
 import comet.core.mod.Lighting;
+import comet.core.mod.MotionBlur;
 import comet.core.mod.ToggleSprint;
 import comet.core.ui.HudEditor;
 import comet.core.ui.ModMenu;
 import comet.core.ui.Screen;
 import comet.core.platform.RawMouse;
 import comet.core.platform.BorderlessWindow;
+import comet.core.render.MotionBlurPass;
 
 public final class CometClient {
     private final GameHost host;
@@ -27,6 +29,8 @@ public final class CometClient {
     private final ToggleSprint toggleSprint;
     private final OldAnimations oldAnimations = new OldAnimations();
     private final Lighting lighting = new Lighting();
+    private final MotionBlur motionBlur = new MotionBlur();
+    private MotionBlurPass blurPass;
     private boolean shiftDown;
     private boolean menuOpen;
     private final RawMouse rawMouse = new RawMouse();
@@ -51,6 +55,7 @@ public final class CometClient {
         mods.register(new Coordinates(host));
         mods.register(new PingCounter(host));
         mods.register(lighting);
+        mods.register(motionBlur);
         if (host.version().startsWith("1.8")) {
             mods.register(oldAnimations);
         }
@@ -89,6 +94,27 @@ public final class CometClient {
 
     public void lightmap(int[] colors) {
         if (mods.isEnabled(lighting)) lighting.apply(colors);
+    }
+
+    public void captureCamera() {
+        if (mods.isEnabled(motionBlur) && host.inWorld() && !host.screenOpen()) {
+            blurPass().capture();
+        }
+    }
+
+    public void motionBlur() {
+        if (mods.isEnabled(motionBlur) && host.inWorld() && !host.screenOpen()) {
+            blurPass().apply(motionBlur);
+        } else if (blurPass != null) {
+            blurPass.release();
+        }
+    }
+
+    private MotionBlurPass blurPass() {
+        if (blurPass == null) {
+            blurPass = new MotionBlurPass();
+        }
+        return blurPass;
     }
 
     public void releaseKeys() {

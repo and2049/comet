@@ -6,6 +6,10 @@ dependencies {
     compileOnly("net.java.jinput:jinput:2.0.5")
 }
 
+configurations.testCompileOnly {
+    extendsFrom(configurations.compileOnly.get())
+}
+
 val regression by tasks.registering(JavaExec::class) {
     dependsOn(tasks.testClasses)
     classpath = sourceSets.test.get().runtimeClasspath + configurations.compileClasspath.get()
@@ -16,4 +20,11 @@ val regression by tasks.registering(JavaExec::class) {
 
 tasks.check {
     dependsOn(regression)
+}
+
+tasks.register<JavaExec>("blurGpuRegression") {
+    dependsOn(tasks.testClasses)
+    classpath = sourceSets.test.get().runtimeClasspath + configurations.compileClasspath.get()
+    mainClass.set("comet.core.render.BlurGpuTests")
+    providers.gradleProperty("nativeDir").orNull?.let { systemProperty("org.lwjgl.librarypath", it) }
 }

@@ -32,12 +32,13 @@ Fullscreen and input preferences are off by default. All settings are saved in `
 - **Coordinates** shows block X/Y/Z at your feet, rounding down at negative positions.
 - **Ping** shows your server-reported latency, `Local` in singleplayer, and `-- ms` when unavailable.
 - **Lighting** provides fullbright or a **1x–10x brightness multiplier**, adjusted with the minus/plus controls in Options. Turn Fullbright off to use the multiplier. It modifies the lightmap without changing your saved Minecraft gamma setting.
+- **Motion Blur** uses **Hybrid** blur: camera-motion sampling combined with a short frame-history trail, stronger toward the edges and reduced near the crosshair. The HUD stays sharp. **Strength** 1-10 controls the blur duration. Hybrid is currently the only algorithm; the selector is retained for future methods. Requires OpenGL 2.0, floating-point textures and framebuffer objects.
 - **Toggle Sprint / Sneak** follows your Minecraft sprint and sneak bindings. Automatic sprint on world entry is on by default; toggle sneak is opt-in under Options. Movement still follows vanilla sprint/sneak rules.
 - **1.7 Visuals** on 1.8.9 restores first-person swings while blocking, eating, drinking or drawing a bow, with separate block-hitting and item-use switches. 1.7.10 uses its native animations.
 
 Mod options and HUD positions are saved in `comet/settings.json` inside the game folder.
 
-Keystrokes, Coordinates, Ping and Lighting start disabled; enable them from their cards. The three HUD additions support the HUD editor and global background/text-shadow settings, and their configuration is included in mod presets.
+Keystrokes, Coordinates, Ping, Lighting and Motion Blur start disabled; enable them from their cards. The three HUD additions support the HUD editor and global background/text-shadow settings, and their configuration is included in mod presets.
 
 ## Run
 
