@@ -47,7 +47,8 @@ public final class HudLayout {
         float scale = clampScale(current.scale);
         int width = Math.round(mod.width(canvas) * scale);
         int height = Math.round(mod.height(canvas) * scale);
-        int x = clamp(Math.round(current.x * canvas.width()), canvas.width() - width);
+        int expansion = Math.round(mod.horizontalExpansion(canvas) * scale);
+        int x = clamp(Math.round(current.x * canvas.width()), canvas.width() - width + 2 * expansion) - expansion;
         int y = clamp(Math.round(current.y * canvas.height()), canvas.height() - height);
         return new Placement(x, y, width, height, scale, current.locked);
     }

@@ -18,12 +18,17 @@ public final class FpsCounter extends HudMod {
 
     @Override
     public String name() {
-        return "FPS counter";
+        return "FPS";
     }
 
     @Override
     public String description() {
         return "Shows the current frame rate.";
+    }
+
+    @Override
+    public String glyph() {
+        return "FPS";
     }
 
     @Override

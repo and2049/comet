@@ -54,6 +54,19 @@ public final class Text {
         draw(canvas, value, centerX - width(canvas, value, size) / 2, y, size, argb);
     }
 
+    public static float spacedWidth(Canvas canvas, String value, float size, float tracking) {
+        return width(canvas, value, size) + tracking * Math.max(0, value.length() - 1);
+    }
+
+    public static void drawSpaced(Canvas canvas, String value, float x, float y, float size, int argb, float tracking) {
+        float pen = x;
+        for (int index = 0; index < value.length(); index++) {
+            String character = value.substring(index, index + 1);
+            draw(canvas, character, pen, y, size, argb);
+            pen += width(canvas, character, size) + tracking;
+        }
+    }
+
     public static float fit(Canvas canvas, String value, float size, float available, float minimum) {
         float width = width(canvas, value, size);
         return width > available ? Math.max(minimum, size * available / width) : size;

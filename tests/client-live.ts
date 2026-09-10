@@ -1,5 +1,5 @@
 import { spawn } from 'node:child_process';
-import { mkdtemp, mkdir, readdir, rm } from 'node:fs/promises';
+import { mkdtemp, mkdir, readFile, readdir, rm } from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
 import assert from 'node:assert/strict';
@@ -92,6 +92,14 @@ try {
       transformed.length >= 2,
       `Mixin exported ${transformed.length} transformed game classes, expected at least 2`,
     );
+    const classes = await Promise.all(transformed.map(name => readFile(path.join(exported, name))));
+    const hooks = ['comet$state', 'comet$held', 'comet$release'];
+    if (instance.version === '1.8.9') hooks.push('comet$oldSwing', 'comet$useSwing');
+    for (const hook of hooks)
+      assert(
+        classes.some(bytes => bytes.includes(Buffer.from(hook))),
+        `${instance.version}: missing transformed hook ${hook}`,
+      );
     console.log(`${instance.version}: Mixin transformed ${transformed.map(name => path.basename(name)).join(', ')}`);
     await rm(exported, { recursive: true, force: true });
     console.log(`${instance.version}: OptiFine, Mixin and the Comet client loaded together`);

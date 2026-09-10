@@ -10,7 +10,9 @@
     "EntityRendererAccessor",
     "GuiButtonMixin",
     "GuiScreenMixin",
-    "GuiSlotMixin"
+    "GuiSlotMixin",
+    "KeyBindingMixin",
+    "ItemRendererMixin"
   ],
   "injectors": {
     "defaultRequire": 1

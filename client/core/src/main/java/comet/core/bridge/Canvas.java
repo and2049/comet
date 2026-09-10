@@ -35,6 +35,10 @@ public interface Canvas {
 
     void endGlyphs();
 
+    void clip(int x, int y, int width, int height);
+
+    void unclip();
+
     void push(int x, int y, float scale);
 
     void pop();

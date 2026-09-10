@@ -12,6 +12,18 @@ The two PvP instances launch through LaunchWrapper with OptiFine and the Comet c
 
 Comet supports the Modrinth ecosystem only: Modrinth modpacks with the Fabric or Quilt loader. CurseForge, Technic, Forge and NeoForge are out of scope by design, not planned features.
 
+### In-game mods
+
+In either Comet PvP instance, press **Right Shift** to open the mod menu. Search or filter the cards, click their enabled/disabled footer to toggle a mod, and use **Options** for its settings. **Edit HUD Layout** lets you drag counters, resize using their corner or the mouse wheel, and right-click to lock them.
+
+The **Presets** sidebar saves mod toggles, options and HUD layouts together. **New preset** captures the current setup; click a preset to load its saved configuration. **Save changes** updates the selected preset, and its pencil button lets you rename or delete it. Unsaved changes are marked and survive restarting the game, but loading a preset replaces them. Presets are shared between 1.7.10 and 1.8.9, starting with a **Default** snapshot of your existing setup.
+
+- **FPS** and **CPS** counters. CPS shows `[ L | R ]`, reserves two digits per side, and expands symmetrically around the separator for larger counts.
+- **Toggle Sprint / Sneak** follows your Minecraft sprint and sneak bindings. Automatic sprint on world entry is on by default; toggle sneak is opt-in under Options. Movement still follows vanilla sprint/sneak rules.
+- **1.7 Visuals** on 1.8.9 restores first-person swings while blocking, eating, drinking or drawing a bow, with separate block-hitting and item-use switches. 1.7.10 uses its native animations.
+
+Mod options and HUD positions are saved in `comet/settings.json` inside the game folder.
+
 ## Run
 
 Requires [Bun](https://bun.sh). Comet downloads the Java runtime Mojang declares for each version; a 64-bit Java executable can optionally be set as an override in Settings, and must match the Java version each instance needs.
@@ -47,6 +59,8 @@ bun run format
 ```
 
 Additional checks: `bun run test:electron`, `bun run test:metadata`, `bun run test:install`, and `bun run test:client`, which launches each PvP version with OptiFine and the locally built Comet client and checks that Mixin transformed the game classes (it opens game windows briefly). The metadata check talks to Mojang, Fabric, Quilt, the MCSR pack host and Modrinth; the install check downloads all three built-in instances and can transfer several hundred MB.
+
+`gradlew build` in `client/` also runs the Java core regression checks for mods, preset persistence, settings and menu interaction. Run `gradlew :core:regression` for those checks alone.
 
 ## Privacy
 

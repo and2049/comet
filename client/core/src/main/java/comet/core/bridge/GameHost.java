@@ -31,4 +31,12 @@ public interface GameHost {
     boolean singleplayer();
 
     void leaveWorld();
+
+    int sprintKey();
+
+    int sneakKey();
+
+    boolean sprinting();
+
+    void setSprinting(boolean sprinting);
 }

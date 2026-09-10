@@ -10,6 +10,8 @@ public final class Widgets {
     public static final int DISABLED = 0x80101010;
     public static final int BORDER = 0x30FFFFFF;
     public static final float LABEL = 9;
+    public static final int TOGGLE_WIDTH = 26;
+    public static final int TOGGLE_HEIGHT = 12;
 
     private Widgets() {
     }
@@ -24,5 +26,11 @@ public final class Widgets {
         float size = Text.fit(canvas, label, LABEL, width - 8, 6);
         float textY = y + (height - Text.height(canvas, label, size)) / 2;
         Text.drawCentered(canvas, label, x + width / 2.0F, textY, size, enabled ? 0xFFFFFFFF : 0x60FFFFFF);
+    }
+
+    public static void toggle(Canvas canvas, int x, int y, boolean enabled) {
+        canvas.roundedFill(x, y, TOGGLE_WIDTH, TOGGLE_HEIGHT, TOGGLE_HEIGHT / 2, enabled ? 0xFF789F56 : 0xFF3A3A3A);
+        int knob = TOGGLE_HEIGHT - 4;
+        canvas.roundedFill(enabled ? x + TOGGLE_WIDTH - knob - 2 : x + 2, y + 2, knob, knob, knob / 2, 0xFFFFFFFF);
     }
 }

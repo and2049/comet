@@ -65,7 +65,7 @@ public final class PauseScreen extends Screen {
         if (back.contains(mouseX, mouseY)) {
             client.host().closeScreen();
         } else if (mods.contains(mouseX, mouseY)) {
-            client.openMods();
+            client.openModMenu();
         } else if (options.contains(mouseX, mouseY)) {
             client.host().open(VanillaScreen.OPTIONS);
         } else if (leave.contains(mouseX, mouseY)) {

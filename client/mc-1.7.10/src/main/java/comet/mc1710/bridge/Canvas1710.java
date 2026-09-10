@@ -221,6 +221,18 @@ public final class Canvas1710 implements Canvas {
     }
 
     @Override
+    public void clip(int x, int y, int width, int height) {
+        int factor = resolution.getScaleFactor();
+        GL11.glEnable(GL11.GL_SCISSOR_TEST);
+        GL11.glScissor(x * factor, mc.displayHeight - (y + height) * factor, Math.max(0, width * factor), Math.max(0, height * factor));
+    }
+
+    @Override
+    public void unclip() {
+        GL11.glDisable(GL11.GL_SCISSOR_TEST);
+    }
+
+    @Override
     public void push(int x, int y, float scale) {
         GL11.glPushMatrix();
         GL11.glTranslatef((float) x, (float) y, 0.0F);

@@ -117,4 +117,26 @@ public final class Host1710 implements GameHost {
         mc.loadWorld((WorldClient) null);
         mc.displayGuiScreen(new GuiMainMenu());
     }
+
+    @Override
+    public int sprintKey() {
+        return mc.gameSettings.keyBindSprint.getKeyCode();
+    }
+
+    @Override
+    public int sneakKey() {
+        return mc.gameSettings.keyBindSneak.getKeyCode();
+    }
+
+    @Override
+    public boolean sprinting() {
+        return mc.thePlayer != null && mc.thePlayer.isSprinting();
+    }
+
+    @Override
+    public void setSprinting(boolean sprinting) {
+        if (mc.thePlayer != null) {
+            mc.thePlayer.setSprinting(sprinting);
+        }
+    }
 }
