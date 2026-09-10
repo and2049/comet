@@ -202,6 +202,10 @@ public final class CoreTests {
         host.canvas = new TestCanvas(512, 300);
         host.screen.resize(512, 300);
         host.screen.draw(host.canvas, -1, -1);
+        check((host.canvas.pixel(140, 65) & 255) > (host.canvas.pixel(140, 64) & 255) + 16, "Top-row card border remains visible");
+        check((host.canvas.pixel(105, 90) & 255) > (host.canvas.pixel(104, 90) & 255) + 16, "First-column outside border remains visible");
+        check((host.canvas.pixel(488, 90) & 255) > (host.canvas.pixel(489, 90) & 255) + 16, "Last-column outside border remains visible");
+        check((host.canvas.pixel(140, 282) & 255) > (host.canvas.pixel(140, 283) & 255) + 16, "Bottom-row card border remains visible");
         Mod fps = find(client, "fps");
         host.screen.mouseDown(130, 158, 0);
         check(!client.mods().isEnabled(fps), "Card footer toggles a mod");

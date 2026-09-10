@@ -154,7 +154,7 @@ public final class ModMenu extends Screen {
         drawFilters(canvas, mouseX, mouseY);
         List<Mod> mods = visible();
         scroll = Math.min(scroll, maxScroll(mods.size()));
-        canvas.clip(contentX(), gridTop(), contentWidth(), gridBottom() - gridTop());
+        canvas.clip(contentX() - 1, gridTop() - 1, contentWidth() + 2, gridBottom() - gridTop() + 2);
         for (int index = 0; index < mods.size(); index++) {
             drawCard(canvas, mods.get(index), cardX(index), cardY(index), options == null && !presets.modal() ? mouseX : -1, mouseY);
         }

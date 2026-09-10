@@ -49,6 +49,7 @@ public final class TestCanvas implements Canvas {
     }
 
     public boolean clipsBalanced() { return clips == 0; }
+    public int pixel(int x, int y) { return image.getRGB(x * 2 + 1, y * 2 + 1); }
     public int width() { return image.getWidth() / 2; }
     public int height() { return image.getHeight() / 2; }
 
