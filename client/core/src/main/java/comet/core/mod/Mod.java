@@ -41,6 +41,10 @@ public abstract class Mod implements TickListener, KeyListener {
         settings.setOption(id(), option.id, value);
     }
 
+    protected boolean global(GlobalSetting setting) {
+        return settings == null ? setting.defaultValue : settings.global(setting);
+    }
+
     public void reset() {
     }
 

@@ -69,6 +69,17 @@ public final class ModSettings {
         save();
     }
 
+    public boolean global(GlobalSetting setting) {
+        Boolean value = data.global.get(setting.id);
+        return value == null ? setting.defaultValue : value;
+    }
+
+    public void setGlobal(GlobalSetting setting, boolean value) {
+        Data next = copyData();
+        next.global.put(setting.id, value);
+        commit(next);
+    }
+
     public List<String> presetNames() {
         return new ArrayList<String>(data.presets.keySet());
     }
@@ -171,6 +182,7 @@ public final class ModSettings {
     private Data copyData() {
         Data next = new Data();
         next.apply(data);
+        next.global.putAll(data.global);
         next.presets.putAll(data.presets);
         next.activePreset = data.activePreset;
         return next;
@@ -191,6 +203,9 @@ public final class ModSettings {
             Data loaded = GSON.fromJson(reader, Data.class);
             if (loaded != null) {
                 loaded.apply(new Snapshot(loaded));
+                if (loaded.global == null) {
+                    loaded.global = new HashMap<String, Boolean>();
+                }
                 Map<String, Snapshot> presets = new LinkedHashMap<String, Snapshot>();
                 if (loaded.presets != null) {
                     for (Map.Entry<String, Snapshot> entry : loaded.presets.entrySet()) {
@@ -297,6 +312,7 @@ public final class ModSettings {
     }
 
     private static final class Data extends Snapshot {
+        Map<String, Boolean> global = new HashMap<String, Boolean>();
         Map<String, Snapshot> presets = new LinkedHashMap<String, Snapshot>();
         String activePreset;
     }

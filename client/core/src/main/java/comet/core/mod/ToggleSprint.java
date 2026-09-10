@@ -139,7 +139,7 @@ public final class ToggleSprint extends HudMod {
         if (width == 0) {
             return;
         }
-        canvas.roundedFill(0, 0, width, height(canvas), 3, 0x70000000);
-        canvas.text(label(), PADDING, PADDING, 0xFFFFFFFF, true);
+        background(canvas, width, height(canvas));
+        text(canvas, label(), PADDING, PADDING);
     }
 }

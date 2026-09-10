@@ -30,6 +30,7 @@ public class CometTweaker implements ITweaker {
 
     @Override
     public void injectIntoClassLoader(LaunchClassLoader classLoader) {
+        classLoader.addClassLoaderExclusion("net.java.games.");
         boolean optifine = hasOptiFine(classLoader);
         if (optifine) {
             classLoader.addClassLoaderExclusion("optifine.");

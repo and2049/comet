@@ -22,6 +22,8 @@ import javax.imageio.ImageIO;
 public final class TestCanvas implements Canvas {
     public final List<String> texts = new ArrayList<String>();
     public final List<String> drawnTextures = new ArrayList<String>();
+    public final List<Boolean> shadows = new ArrayList<Boolean>();
+    public final List<Integer> roundedColors = new ArrayList<Integer>();
     private final BufferedImage image;
     private final Graphics2D g;
     private final Map<String, BufferedImage> textures = new HashMap<String, BufferedImage>();
@@ -59,6 +61,7 @@ public final class TestCanvas implements Canvas {
     }
 
     public void roundedFill(int x, int y, int width, int height, int radius, int argb) {
+        roundedColors.add(argb);
         g.setColor(new Color(argb, true));
         g.fillRoundRect(x, y, width, height, radius * 2, radius * 2);
     }
@@ -70,6 +73,7 @@ public final class TestCanvas implements Canvas {
 
     public void text(String value, int x, int y, int argb, boolean shadow) {
         texts.add(value);
+        shadows.add(shadow);
         g.setColor(new Color(argb, true));
         g.drawString(value, x, y + 8);
     }

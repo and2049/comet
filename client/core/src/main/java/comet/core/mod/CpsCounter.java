@@ -107,21 +107,21 @@ public final class CpsCounter extends HudMod {
     @Override
     public void render(Canvas canvas) {
         Layout layout = layout(canvas);
-        canvas.roundedFill(0, 0, layout.width + PADDING * 2, height(canvas), 3, 0x70000000);
+        background(canvas, layout.width + PADDING * 2, height(canvas));
         int x = PADDING;
         if (!layout.prefix.isEmpty()) {
-            canvas.text(layout.prefix, x, PADDING, 0xFFFFFFFF, true);
+            text(canvas, layout.prefix, x, PADDING);
             x += canvas.textWidth(layout.prefix);
         }
-        canvas.text("[ ", x, PADDING, 0xFFFFFFFF, true);
+        text(canvas, "[ ", x, PADDING);
         x += canvas.textWidth("[ ");
-        canvas.text(layout.left, x + layout.slot - canvas.textWidth(layout.left), PADDING, 0xFFFFFFFF, true);
+        text(canvas, layout.left, x + layout.slot - canvas.textWidth(layout.left), PADDING);
         x += layout.slot;
-        canvas.text(" | ", x, PADDING, 0xFFFFFFFF, true);
+        text(canvas, " | ", x, PADDING);
         x += canvas.textWidth(" | ");
-        canvas.text(layout.right, x, PADDING, 0xFFFFFFFF, true);
+        text(canvas, layout.right, x, PADDING);
         x += layout.slot;
-        canvas.text(" ]", x, PADDING, 0xFFFFFFFF, true);
+        text(canvas, " ]", x, PADDING);
     }
 
     private Layout layout(Canvas canvas) {

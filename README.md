@@ -18,6 +18,15 @@ In either Comet PvP instance, press **Right Shift** to open the mod menu. Search
 
 The **Presets** sidebar saves mod toggles, options and HUD layouts together. **New preset** captures the current setup; click a preset to load its saved configuration. **Save changes** updates the selected preset, and its pencil button lets you rename or delete it. Unsaved changes are marked and survive restarting the game, but loading a preset replaces them. Presets are shared between 1.7.10 and 1.8.9, starting with a **Default** snapshot of your existing setup.
 
+The **Settings** tab contains shared preferences that stay the same when switching presets:
+
+- **HUD background** and **Text shadow** affect all Comet HUD labels and their editor previews. Both are on by default.
+- **Borderless fullscreen** makes F11 use a desktop-sized borderless window. Changing this preference while fullscreen switches modes immediately; leaving fullscreen restores the window size and position.
+- **Raw mouse input** uses Minecraft's existing JInput native backend for relative camera movement while preserving sensitivity and invert-mouse settings. If no relative device is available, Settings reports the fallback to normal input.
+- **Disable hotbar scrolling** blocks wheel-based hotbar selection. Menu scrolling and number-key selection still work.
+
+Fullscreen and input preferences are off by default. All settings are saved in `comet/settings.json` in the shared PvP game folder.
+
 - **FPS** and **CPS** counters. CPS shows `[ L | R ]`, reserves two digits per side, and expands symmetrically around the separator for larger counts.
 - **Toggle Sprint / Sneak** follows your Minecraft sprint and sneak bindings. Automatic sprint on world entry is on by default; toggle sneak is opt-in under Options. Movement still follows vanilla sprint/sneak rules.
 - **1.7 Visuals** on 1.8.9 restores first-person swings while blocking, eating, drinking or drawing a bow, with separate block-hitting and item-use switches. 1.7.10 uses its native animations.

@@ -14,6 +14,8 @@ import comet.core.mod.ToggleSprint;
 import comet.core.ui.HudEditor;
 import comet.core.ui.ModMenu;
 import comet.core.ui.Screen;
+import comet.core.platform.RawMouse;
+import comet.core.platform.BorderlessWindow;
 
 public final class CometClient {
     private final GameHost host;
@@ -22,6 +24,16 @@ public final class CometClient {
     private final OldAnimations oldAnimations = new OldAnimations();
     private boolean shiftDown;
     private boolean menuOpen;
+    private final RawMouse rawMouse = new RawMouse();
+    private final BorderlessWindow borderless = new BorderlessWindow();
+
+    public RawMouse rawMouse() {
+        return rawMouse;
+    }
+
+    public BorderlessWindow borderless() {
+        return borderless;
+    }
 
     public CometClient(GameHost host) {
         this.host = host;

@@ -8,6 +8,8 @@ import comet.core.ui.HudEditor;
 import comet.core.ui.ModMenu;
 import comet.core.ui.Screen;
 import comet.core.ui.TestCanvas;
+import comet.core.platform.RawMouse;
+import comet.core.platform.BorderlessWindow;
 import java.io.File;
 import java.lang.reflect.Proxy;
 import java.nio.charset.StandardCharsets;
@@ -30,6 +32,9 @@ public final class CoreTests {
             settings(root.resolve("settings"));
             presets(root.resolve("presets"));
             menus(root.resolve("menu"));
+            globalSettings(root.resolve("global"));
+            rawMouse();
+            borderless();
             System.out.println("Comet core: " + assertions + " assertions passed");
         } finally {
             try (Stream<Path> files = Files.walk(root)) {
@@ -233,6 +238,112 @@ public final class CoreTests {
         host.screen.mouseDown(256, 150, 0);
         check(host.screen instanceof ModMenu && host.blurred, "Switching from HUD editor preserves menu lifecycle");
         presetMenu(host, client);
+    }
+
+    private static void globalSettings(Path root) throws Exception {
+        Host host = new Host(root);
+        CometClient client = new CometClient(host.bridge);
+        ModSettings settings = client.mods().settings();
+        for (GlobalSetting setting : GlobalSetting.values()) {
+            check(settings.global(setting) == setting.defaultValue, "Global setting defaults: " + setting.id);
+        }
+        settings.setGlobal(GlobalSetting.HUD_BACKGROUND, false);
+        settings.setGlobal(GlobalSetting.TEXT_SHADOW, false);
+        settings.createPreset("Other");
+        settings.loadPreset("Default");
+        settings.deletePreset("Other");
+        check(!settings.global(GlobalSetting.HUD_BACKGROUND) && !settings.global(GlobalSetting.TEXT_SHADOW), "Presets preserve global preferences");
+        check(!settings.presetModified(), "Global preferences do not dirty mod snapshots");
+        ModSettings restored = new ModSettings(root.toFile());
+        check(!restored.global(GlobalSetting.HUD_BACKGROUND) && !restored.global(GlobalSetting.TEXT_SHADOW), "Global preferences survive restart");
+        for (HudMod mod : client.mods().hud()) {
+            mod.preview(true);
+            TestCanvas canvas = new TestCanvas(320, 240);
+            int width = mod.width(canvas);
+            mod.render(canvas);
+            check(!canvas.roundedColors.contains(0x70000000) && !canvas.shadows.isEmpty() && !canvas.shadows.contains(true), "Global HUD appearance applies to " + mod.id());
+            settings.setGlobal(GlobalSetting.HUD_BACKGROUND, true);
+            settings.setGlobal(GlobalSetting.TEXT_SHADOW, true);
+            canvas = new TestCanvas(320, 240);
+            mod.render(canvas);
+            check(canvas.roundedColors.contains(0x70000000) && !canvas.shadows.contains(false) && mod.width(canvas) == width, "Restoring HUD styling preserves layout for " + mod.id());
+            settings.setGlobal(GlobalSetting.HUD_BACKGROUND, false);
+            settings.setGlobal(GlobalSetting.TEXT_SHADOW, false);
+        }
+        client.openModMenu();
+        for (int[] size : new int[][] {{320, 240}, {427, 240}, {512, 300}, {960, 540}}) {
+            host.canvas = new TestCanvas(size[0], size[1]);
+            host.screen.resize(size[0], size[1]);
+            int panelX = (size[0] - Math.min(600, size[0] - 20)) / 2;
+            int panelY = (size[1] - Math.min(370, size[1] - 20)) / 2;
+            host.screen.mouseDown(panelX + 170, panelY + 13, 0);
+            host.screen.draw(host.canvas, -1, -1);
+            check(host.canvas.clipsBalanced(), "Settings page clips correctly at " + size[0]);
+            host.canvas.save("settings-" + size[0]);
+        }
+        host.canvas = new TestCanvas(512, 300);
+        host.screen.resize(512, 300);
+        host.screen.mouseDown(120, 76, 0);
+        check(settings.global(GlobalSetting.HUD_BACKGROUND), "Settings page toggles global HUD background");
+        host.screen.mouseDown(130, 49, 0);
+        for (char character : "hotbar".toCharArray()) host.screen.key(character, 0);
+        host.screen.mouseDown(120, 76, 0);
+        check(settings.global(GlobalSetting.DISABLE_HOTBAR_SCROLLING), "Settings search routes clicks to the filtered setting");
+        host.screen.mouseDown(120, 23, 0);
+        host.screen.draw(host.canvas, -1, -1);
+        check(host.canvas.drawnTextures.contains("comet:mod/fps"), "Mods tab restores the card grid");
+        Path failureRoot = root.resolve("failure");
+        ModSettings failure = new ModSettings(failureRoot.toFile());
+        Files.createDirectories(failureRoot.resolve("comet/settings.json/occupied"));
+        rejected(() -> failure.setGlobal(GlobalSetting.TEXT_SHADOW, false), "Global settings report persistence failures");
+        check(failure.global(GlobalSetting.TEXT_SHADOW), "Failed writes retain the prior global setting");
+    }
+
+    private static void rawMouse() {
+        final float[][] sample = {new float[] {50, -50}};
+        RawMouse mouse = new RawMouse(() -> sample[0]);
+        check(mouse.read(false, true) == null, "Disabled raw input uses vanilla movement");
+        check(mouse.read(true, true)[0] == 0, "Enabling raw input discards stale deltas");
+        sample[0] = new float[] {3, -4};
+        int[] movement = mouse.read(true, true);
+        check(movement[0] == 3 && movement[1] == -4, "Raw deltas preserve magnitude and direction");
+        sample[0] = new float[] {0.5F, -0.5F};
+        check(mouse.read(true, true)[0] == 0, "Fractional raw deltas accumulate");
+        movement = mouse.read(true, true);
+        check(movement[0] == 1 && movement[1] == -1, "Fractional accumulation avoids dropping slow input");
+        sample[0] = new float[] {1000, 1000};
+        check(mouse.read(true, false)[0] == 0 && mouse.read(true, true)[0] == 0, "Focus transitions discard background movement");
+        mouse.reset();
+        check(mouse.read(true, true)[0] == 0, "Cursor re-grab discards stale movement");
+        sample[0] = null;
+        check(mouse.read(true, true) == null && !mouse.status().isEmpty(), "Disconnected raw devices fall back to vanilla input");
+        sample[0] = new float[] {3, 4};
+        check(mouse.read(true, true)[0] == 0 && mouse.status().isEmpty(), "Reconnected devices resume without a camera jump");
+    }
+
+    private static void borderless() {
+        final BorderlessWindow.State original = new BorderlessWindow.State(854, 480, 120, 80, null, true);
+        final BorderlessWindow.State desktop = new BorderlessWindow.State(1920, 1080, 0, 0, "true", false);
+        final BorderlessWindow.State[] current = {original};
+        final boolean[] fail = {false};
+        BorderlessWindow window = new BorderlessWindow(new BorderlessWindow.Backend() {
+            public BorderlessWindow.State current() { return current[0]; }
+            public BorderlessWindow.State desktop() { return desktop; }
+            public void apply(BorderlessWindow.State state) {
+                current[0] = state;
+                if (fail[0]) {
+                    fail[0] = false;
+                    throw new IllegalStateException("Simulated display failure");
+                }
+            }
+        });
+        check(window.transition() && window.active() && current[0] == desktop, "Borderless enters desktop-sized undecorated mode");
+        fail[0] = true;
+        check(!window.transition() && window.active() && current[0] == desktop && !window.status().isEmpty(), "A failed exit rolls back and retains fullscreen state");
+        check(window.transition() && !window.active() && current[0] == original && window.status().isEmpty(), "Leaving borderless restores position, dimensions and decoration");
+        fail[0] = true;
+        check(!window.transition() && !window.active() && current[0] == original, "A failed entry restores the original window");
+        check(window.transition() && window.transition() && current[0] == original, "Fullscreen can be retried after display failure");
     }
 
     private static void rejected(Runnable action, String message) {

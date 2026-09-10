@@ -32,6 +32,8 @@ public final class ModMenu extends Screen {
     private final CometClient client;
     private final Button edit = new Button("Edit HUD layout", SIDEBAR - 2 * PAD, 18);
     private final PresetPanel presets;
+    private final SettingsPanel settings;
+    private boolean settingsPage;
     private Category filter;
     private String query = "";
     private boolean searching;
@@ -46,6 +48,7 @@ public final class ModMenu extends Screen {
     public ModMenu(CometClient client) {
         this.client = client;
         presets = new PresetPanel(client);
+        settings = new SettingsPanel(client);
         openingShift = client.host().keyDown(Keys.RIGHT_SHIFT);
     }
 
@@ -75,6 +78,7 @@ public final class ModMenu extends Screen {
         edit.place(panelX + PAD, panelY + panelHeight - PAD - edit.height);
         presets.resize(panelX + PAD, panelY + HEADER + PAD, SIDEBAR - 2 * PAD,
                 panelHeight - HEADER - 3 * PAD - edit.height - 4);
+        settings.resize(contentX(), panelY + HEADER + PAD, contentWidth(), panelHeight - HEADER - 2 * PAD);
     }
 
     private List<Mod> visible() {
@@ -151,6 +155,13 @@ public final class ModMenu extends Screen {
         Widgets.pill(canvas, panelX, panelY, panelWidth, panelHeight, 0xCA101010);
         drawHeader(canvas, mouseX, mouseY);
         drawSidebar(canvas, mouseX, mouseY);
+        if (settingsPage) {
+            settings.draw(canvas, presets.modal() ? -1 : mouseX, mouseY);
+            if (presets.modal()) {
+                presets.drawDialog(canvas, mouseX, mouseY);
+            }
+            return;
+        }
         drawFilters(canvas, mouseX, mouseY);
         List<Mod> mods = visible();
         scroll = Math.min(scroll, maxScroll(mods.size()));
@@ -182,8 +193,9 @@ public final class ModMenu extends Screen {
         int centerY = panelY + HEADER / 2;
         canvas.image("comet", "mark.png", panelX + PAD, centerY - 8, 16, 16);
         Text.drawSpaced(canvas, "COMET", panelX + PAD + 20, centerY - 5, 9, 0xFFFFFFFF, 1.4F);
-        Text.draw(canvas, "Mods", contentX(), centerY - 4, 9, 0xFFFFFFFF);
-        Text.draw(canvas, client.host().version(), contentX() + 30, centerY - 2, 6, 0xFF9C9C9C);
+        chip(canvas, contentX(), centerY - CHIP / 2, "MODS", !settingsPage, !presets.modal() && inside(mouseX, mouseY, contentX(), centerY - CHIP / 2, chipWidth(canvas, "MODS"), CHIP));
+        int settingsX = contentX() + chipWidth(canvas, "MODS") + 6;
+        chip(canvas, settingsX, centerY - CHIP / 2, "SETTINGS", settingsPage, !presets.modal() && inside(mouseX, mouseY, settingsX, centerY - CHIP / 2, chipWidth(canvas, "SETTINGS"), CHIP));
         canvas.fill(panelX, panelY + HEADER, panelWidth, 1, 0x30FFFFFF);
         int closeX = panelX + panelWidth - PAD - CHIP;
         boolean hover = inside(mouseX, mouseY, closeX, centerY - CHIP / 2, CHIP, CHIP);
@@ -315,8 +327,23 @@ public final class ModMenu extends Screen {
             client.openHudEditor();
             return;
         }
+        Canvas canvas = client.host().canvas();
+        int settingsX = contentX() + chipWidth(canvas, "MODS") + 6;
+        if (inside(mouseX, mouseY, contentX(), centerY - CHIP / 2, chipWidth(canvas, "MODS"), CHIP)) {
+            settingsPage = false;
+            return;
+        }
+        if (inside(mouseX, mouseY, settingsX, centerY - CHIP / 2, chipWidth(canvas, "SETTINGS"), CHIP)) {
+            settingsPage = true;
+            searching = false;
+            return;
+        }
         if (presets.mouseDown(mouseX, mouseY)) {
             searching = false;
+            return;
+        }
+        if (settingsPage) {
+            settings.click(mouseX, mouseY);
             return;
         }
         int filterY = panelY + HEADER + PAD;
@@ -392,6 +419,10 @@ public final class ModMenu extends Screen {
             if (presets.scroll(mouseX, mouseY, direction)) {
                 return;
             }
+            if (settingsPage) {
+                settings.scroll(mouseX, mouseY, direction);
+                return;
+            }
             if (!inside(mouseX, mouseY, contentX(), gridTop(), contentWidth() + 6, gridBottom() - gridTop())) {
                 return;
             }
@@ -406,6 +437,9 @@ public final class ModMenu extends Screen {
         }
         if (presets.modal()) {
             presets.key(character, code);
+            return true;
+        }
+        if (settingsPage && code != Keys.RIGHT_SHIFT && settings.key(character, code)) {
             return true;
         }
         if (code == Keys.ESCAPE) {

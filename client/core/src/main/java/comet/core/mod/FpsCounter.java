@@ -48,8 +48,8 @@ public final class FpsCounter extends HudMod {
 
     @Override
     public void render(Canvas canvas) {
-        canvas.roundedFill(0, 0, width(canvas), height(canvas), 3, 0x70000000);
-        canvas.text(label(), PADDING, PADDING, 0xFFFFFFFF, true);
+        background(canvas, width(canvas), height(canvas));
+        text(canvas, label(), PADDING, PADDING);
     }
 
     private String label() {

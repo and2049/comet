@@ -2,6 +2,8 @@ dependencies {
     compileOnly("com.google.code.gson:gson:2.2.4")
     compileOnly("org.spongepowered:mixin:${property("mixin_version")}")
     compileOnly("net.minecraft:launchwrapper:1.12") { isTransitive = false }
+    compileOnly("org.lwjgl.lwjgl:lwjgl:2.9.1") { isTransitive = false }
+    compileOnly("net.java.jinput:jinput:2.0.5")
 }
 
 val regression by tasks.registering(JavaExec::class) {

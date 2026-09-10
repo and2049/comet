@@ -81,6 +81,10 @@ try {
     assert(!lines.some(line => /MixinApplyError|Mixin apply failed|InvalidMixinException/.test(line)), 'Mixin errors');
     assert(!lines.some(line => /Unable to launch|Exception in thread|Caused by:/.test(line)), 'The game crashed');
     assert(
+      !lines.some(line => /security seal/.test(line)),
+      'Native input libraries must use their sealed parent classloader',
+    );
+    assert(
       lines.some(line => menu.test(line)),
       'The game did not reach the main menu',
     );
@@ -93,7 +97,14 @@ try {
       `Mixin exported ${transformed.length} transformed game classes, expected at least 2`,
     );
     const classes = await Promise.all(transformed.map(name => readFile(path.join(exported, name))));
-    const hooks = ['comet$state', 'comet$held', 'comet$release'];
+    const hooks = [
+      'comet$state',
+      'comet$held',
+      'comet$release',
+      'comet$fullscreen',
+      'comet$hotbarScroll',
+      'comet$rawMouse',
+    ];
     if (instance.version === '1.8.9') hooks.push('comet$oldSwing', 'comet$useSwing');
     for (const hook of hooks)
       assert(
