@@ -5,6 +5,7 @@
   "refmap": "comet.refmap.json",
   "compatibilityLevel": "JAVA_8",
   "client": [
+    "LightingMixin",
     "ClientSettingsMixin",
     "MouseHelperMixin",
     "MinecraftMixin",

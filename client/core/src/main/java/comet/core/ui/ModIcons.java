@@ -30,7 +30,25 @@ final class ModIcons {
         g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
         g.setColor(new Color(0xE7E9E7));
         g.setStroke(new BasicStroke(6, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
-        if ("cps".equals(id)) {
+        if ("keystrokes".equals(id)) {
+            g.drawRoundRect(37, 13, 22, 22, 5, 5);
+            for (int x = 9; x < 80; x += 28) g.drawRoundRect(x, 41, 22, 22, 5, 5);
+            g.drawRoundRect(9, 70, 78, 14, 5, 5);
+        } else if ("coordinates".equals(id)) {
+            g.drawOval(24, 24, 48, 48);
+            g.drawLine(48, 8, 48, 33);
+            g.drawLine(48, 63, 48, 88);
+            g.drawLine(8, 48, 33, 48);
+            g.drawLine(63, 48, 88, 48);
+        } else if ("ping".equals(id)) {
+            for (int index = 0; index < 4; index++) g.fillRoundRect(12 + index * 20, 62 - index * 15, 13, 20 + index * 15, 4, 4);
+        } else if ("lighting".equals(id) || "fullbright".equals(id)) {
+            g.drawOval(30, 30, 36, 36);
+            for (int index = 0; index < 8; index++) {
+                g.drawLine(48, 9, 48, 20);
+                g.rotate(Math.PI / 4, 48, 48);
+            }
+        } else if ("cps".equals(id)) {
             g.rotate(Math.PI / 7, 48, 48);
             g.drawRoundRect(25, 16, 46, 66, 38, 38);
             g.drawLine(48, 18, 48, 42);

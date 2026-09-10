@@ -14,6 +14,14 @@ public interface GameHost {
 
     boolean keyDown(int key);
 
+    int controlKey(Control control);
+
+    String keyName(int key);
+
+    double[] position();
+
+    int ping();
+
     int fps();
 
     File gameDirectory();

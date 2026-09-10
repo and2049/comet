@@ -35,6 +35,7 @@ public final class CoreTests {
             globalSettings(root.resolve("global"));
             rawMouse();
             borderless();
+            displayMods(root.resolve("display"));
             System.out.println("Comet core: " + assertions + " assertions passed");
         } finally {
             try (Stream<Path> files = Files.walk(root)) {
@@ -182,7 +183,7 @@ public final class CoreTests {
         check(Boolean.FALSE.equals(reloaded.option("oldAnimations", "blockHit")), "Options survive reload");
         Host legacy = new Host(root.resolve("legacy"));
         legacy.version = "1.7.10";
-        check(new CometClient(legacy.bridge).mods().all().size() == 3, "1.7.10 uses its native animations");
+        check(new CometClient(legacy.bridge).mods().all().stream().noneMatch(mod -> mod.id().equals("oldAnimations")), "1.7.10 uses its native animations");
     }
 
     private static void menus(Path root) throws Exception {
@@ -356,6 +357,108 @@ public final class CoreTests {
         check(false, message);
     }
 
+    private static void displayMods(Path root) throws Exception {
+        Host host = new Host(root);
+        host.world = true;
+        CometClient client = new CometClient(host.bridge);
+        Coordinates coordinates = (Coordinates) find(client, "coordinates");
+        PingCounter ping = (PingCounter) find(client, "ping");
+        Keystrokes keys = (Keystrokes) find(client, "keystrokes");
+        Lighting lighting = (Lighting) find(client, "lighting");
+        host.position = new double[] {-0.01, 63.99, -123.5};
+        check(java.util.Arrays.equals(coordinates.labels(), new String[] {"X: -1", "Y: 63", "Z: -124"}), "Coordinates floor negative positions to their block");
+        host.position = null;
+        check(coordinates.labels()[0].equals("X: --"), "Missing player coordinates are explicit");
+        host.ping = 183;
+        check(ping.label().equals("183 ms"), "Ping shows server-reported latency");
+        host.ping = -1;
+        check(ping.label().equals("-- ms"), "Unknown ping does not invent zero latency");
+        host.local = true;
+        check(ping.label().equals("Local"), "Singleplayer is identified as local");
+        host.physicalKey = 17;
+        check(keys.pressed(comet.core.bridge.Control.FORWARD), "Keystrokes reads physical movement bindings");
+        host.forwardKey = -98;
+        check(!keys.pressed(comet.core.bridge.Control.FORWARD), "Rebinding releases the old keystroke indicator");
+        host.physicalKey = -98;
+        check(keys.pressed(comet.core.bridge.Control.FORWARD), "Keystrokes supports rebound mouse controls");
+        host.forwardKey = 0;
+        host.physicalKey = 0;
+        check(!keys.pressed(comet.core.bridge.Control.FORWARD), "Unbound controls never light up");
+        host.forwardKey = 17;
+        host.physicalKey = 17;
+        client.openModMenu();
+        check(!keys.pressed(comet.core.bridge.Control.FORWARD), "GUI input does not light keystrokes");
+        host.bridge.closeScreen();
+        host.world = false;
+        check(!keys.pressed(comet.core.bridge.Control.FORWARD), "World exit clears keystrokes without stale state");
+        for (HudMod mod : new HudMod[] {keys, coordinates, ping}) {
+            client.mods().toggle(mod);
+            mod.preview(true);
+            client.mods().settings().setGlobal(GlobalSetting.HUD_BACKGROUND, false);
+            client.mods().settings().setGlobal(GlobalSetting.TEXT_SHADOW, false);
+            TestCanvas canvas = new TestCanvas(320, 240);
+            mod.render(canvas);
+            check(!canvas.shadows.isEmpty() && !canvas.shadows.contains(true) && canvas.roundedColors.isEmpty(), "Global appearance applies to " + mod.id());
+            client.mods().settings().setGlobal(GlobalSetting.HUD_BACKGROUND, true);
+            client.mods().settings().setGlobal(GlobalSetting.TEXT_SHADOW, true);
+            canvas = new TestCanvas(320, 240);
+            mod.render(canvas);
+            check(canvas.roundedColors.contains(0x70000000) && !canvas.shadows.contains(false), "Background and shadows restore for " + mod.id());
+            canvas.save(mod.id());
+        }
+        check(keys.height(host.canvas) == 88, "Keystrokes includes mouse and jump rows");
+        keys.setOption(Keystrokes.MOUSE, false);
+        keys.setOption(Keystrokes.JUMP, false);
+        check(keys.height(host.canvas) == 46, "Keystrokes optional rows resize the editor bounds");
+        int[] original = {0xFF204080, 0x80301005, 0xFF000000};
+        int[] colors = original.clone();
+        client.lightmap(colors);
+        check(java.util.Arrays.equals(colors, original), "Disabled Lighting leaves the lightmap untouched");
+        client.mods().toggle(lighting);
+        client.lightmap(colors);
+        check(colors[0] == 0xFFFFFFFF && colors[1] == 0x80FFFFFF, "Fullbright saturates RGB while preserving alpha");
+        lighting.setOption(Lighting.FULLBRIGHT, false);
+        colors = original.clone();
+        client.lightmap(colors);
+        check(colors[0] == 0xFF4080FF && colors[1] == 0x8060200A && colors[2] == 0xFF000000, "Multiplier brightens channels independently and clamps without overflow");
+        lighting.setNumber(Lighting.MULTIPLIER, 1);
+        colors = original.clone();
+        client.lightmap(colors);
+        check(java.util.Arrays.equals(colors, original), "1x preserves vanilla lightmap colors exactly");
+        lighting.setNumber(Lighting.MULTIPLIER, 999);
+        check(lighting.number(Lighting.MULTIPLIER) == 10, "Multiplier is bounded");
+        ModSettings settings = client.mods().settings();
+        settings.savePreset();
+        lighting.setNumber(Lighting.MULTIPLIER, 3);
+        check(settings.presetModified(), "Numeric changes dirty the preset");
+        settings.createPreset("Dimmer");
+        lighting.setNumber(Lighting.MULTIPLIER, 4);
+        settings.loadPreset("Default");
+        check(lighting.number(Lighting.MULTIPLIER) == 10, "Numeric preset snapshots are deeply isolated");
+        ModSettings restarted = new ModSettings(root.toFile());
+        restarted.loadPreset("Dimmer");
+        check(restarted.number("lighting", "multiplier") == 3, "Numeric settings and snapshots survive restart");
+        Path failureRoot = root.resolve("failure");
+        ModSettings failure = new ModSettings(failureRoot.toFile());
+        Files.createDirectories(failureRoot.resolve("comet/settings.json/occupied"));
+        rejected(() -> failure.setNumber("lighting", "multiplier", 4), "Numeric persistence failures are reported");
+        check(failure.number("lighting", "multiplier") == null, "Failed numeric writes retain working settings");
+        host.version = "1.7.10";
+        check(find(new CometClient(host.bridge), "lighting") != null, "Lighting is registered on legacy PvP too");
+        host.world = true;
+        client.openModMenu();
+        host.screen.mouseDown(430, 49, 0);
+        for (char c : "lighting".toCharArray()) host.screen.key(c, 0);
+        host.screen.mouseDown(145, 128, 0);
+        host.screen.draw(host.canvas, -1, -1);
+        host.canvas.save("lighting-options");
+        int previous = lighting.number(Lighting.MULTIPLIER);
+        host.screen.mouseDown(311, 174, 0);
+        check(lighting.number(Lighting.MULTIPLIER) == previous - 1, "Multiplier minus button changes the numeric setting");
+        host.screen.mouseDown(365, 174, 0);
+        check(lighting.number(Lighting.MULTIPLIER) == previous, "Multiplier plus button changes the numeric setting");
+    }
+
     private static void presets(Path root) throws Exception {
         ModSettings settings = new ModSettings(root.toFile());
         check(settings.presetNames().size() == 1 && settings.activePreset().equals("Default"), "Existing configuration becomes Default");
@@ -465,6 +568,11 @@ public final class CoreTests {
         int sprintKey = 29;
         int sneakKey = 42;
         String version = "1.8.9";
+        int physicalKey = Integer.MIN_VALUE;
+        int forwardKey = 17;
+        double[] position;
+        int ping = -1;
+        boolean local;
         Screen screen;
 
         Host(Path root) {
@@ -474,7 +582,22 @@ public final class CoreTests {
                     case "version": return version;
                     case "inWorld": return world;
                     case "screenOpen": return screen != null;
-                    case "keyDown": return shift && (Integer) args[0] == Keys.RIGHT_SHIFT;
+                    case "keyDown": return physicalKey == (Integer) args[0] || shift && (Integer) args[0] == Keys.RIGHT_SHIFT;
+                    case "controlKey": return new int[] {forwardKey, 30, 31, 32, 57, -100, -99}[((comet.core.bridge.Control) args[0]).ordinal()];
+                    case "keyName":
+                        switch ((Integer) args[0]) {
+                            case 17: return "W";
+                            case 30: return "A";
+                            case 31: return "S";
+                            case 32: return "D";
+                            case 57: return "SPACE";
+                            case -100: return "LMB";
+                            case -99: return "RMB";
+                            default: return "--";
+                        }
+                    case "position": return position;
+                    case "ping": return ping;
+                    case "singleplayer": return local;
                     case "sprintKey": return sprintKey;
                     case "sneakKey": return sneakKey;
                     case "sprinting": return sprinting;

@@ -28,10 +28,16 @@ The **Settings** tab contains shared preferences that stay the same when switchi
 Fullscreen and input preferences are off by default. All settings are saved in `comet/settings.json` in the shared PvP game folder.
 
 - **FPS** and **CPS** counters. CPS shows `[ L | R ]`, reserves two digits per side, and expands symmetrically around the separator for larger counts.
+- **Keystrokes** shows your movement bindings, with optional mouse-button and jump rows. Indicators follow physical presses and rebound controls, including mouse bindings.
+- **Coordinates** shows block X/Y/Z at your feet, rounding down at negative positions.
+- **Ping** shows your server-reported latency, `Local` in singleplayer, and `-- ms` when unavailable.
+- **Lighting** provides fullbright or a **1x–10x brightness multiplier**, adjusted with the minus/plus controls in Options. Turn Fullbright off to use the multiplier. It modifies the lightmap without changing your saved Minecraft gamma setting.
 - **Toggle Sprint / Sneak** follows your Minecraft sprint and sneak bindings. Automatic sprint on world entry is on by default; toggle sneak is opt-in under Options. Movement still follows vanilla sprint/sneak rules.
 - **1.7 Visuals** on 1.8.9 restores first-person swings while blocking, eating, drinking or drawing a bow, with separate block-hitting and item-use switches. 1.7.10 uses its native animations.
 
 Mod options and HUD positions are saved in `comet/settings.json` inside the game folder.
+
+Keystrokes, Coordinates, Ping and Lighting start disabled; enable them from their cards. The three HUD additions support the HUD editor and global background/text-shadow settings, and their configuration is included in mod presets.
 
 ## Run
 

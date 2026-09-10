@@ -1,6 +1,7 @@
 package comet.mc189.bridge;
 
 import comet.core.bridge.Canvas;
+import comet.core.bridge.Control;
 import comet.core.bridge.GameHost;
 import comet.core.bridge.VanillaScreen;
 import comet.core.ui.Screen;
@@ -15,6 +16,10 @@ import net.minecraft.client.gui.GuiSelectWorld;
 import net.minecraft.client.multiplayer.WorldClient;
 import net.minecraft.util.ResourceLocation;
 import org.lwjgl.input.Keyboard;
+import org.lwjgl.input.Mouse;
+import org.lwjgl.opengl.Display;
+import net.minecraft.client.settings.KeyBinding;
+import net.minecraft.client.network.NetworkPlayerInfo;
 
 public final class Host189 implements GameHost {
     private static final ResourceLocation BLUR = new ResourceLocation("shaders/post/blur.json");
@@ -43,7 +48,32 @@ public final class Host189 implements GameHost {
 
     @Override
     public boolean keyDown(int key) {
-        return Keyboard.isCreated() && Keyboard.isKeyDown(key);
+        if (!Display.isActive()) return false;
+        return key < 0 ? Mouse.isCreated() && key + 100 >= 0 && key + 100 < Mouse.getButtonCount() && Mouse.isButtonDown(key + 100)
+                : key > 0 && key < Keyboard.KEYBOARD_SIZE && Keyboard.isCreated() && Keyboard.isKeyDown(key);
+    }
+
+    public int controlKey(Control control) {
+        KeyBinding[] bindings = {mc.gameSettings.keyBindForward, mc.gameSettings.keyBindLeft, mc.gameSettings.keyBindBack,
+                mc.gameSettings.keyBindRight, mc.gameSettings.keyBindJump, mc.gameSettings.keyBindAttack, mc.gameSettings.keyBindUseItem};
+        return bindings[control.ordinal()].getKeyCode();
+    }
+
+    public String keyName(int key) {
+        if (key == -100) return "LMB";
+        if (key == -99) return "RMB";
+        if (key < 0 && key >= -100) return "M" + (key + 101);
+        return key > 0 && key < Keyboard.KEYBOARD_SIZE ? Keyboard.getKeyName(key) : "--";
+    }
+
+    public double[] position() {
+        return mc.thePlayer == null ? null : new double[] {mc.thePlayer.posX, mc.thePlayer.getEntityBoundingBox().minY, mc.thePlayer.posZ};
+    }
+
+    public int ping() {
+        if (mc.thePlayer == null || mc.getNetHandler() == null) return -1;
+        NetworkPlayerInfo info = mc.getNetHandler().getPlayerInfo(mc.thePlayer.getUniqueID());
+        return info == null ? -1 : info.getResponseTime();
     }
 
     @Override

@@ -6,6 +6,7 @@ import comet.core.bridge.Keys;
 import comet.core.mod.Category;
 import comet.core.mod.Mod;
 import comet.core.mod.Option;
+import comet.core.mod.NumberOption;
 import comet.core.text.Text;
 import java.util.ArrayList;
 import java.util.List;
@@ -39,6 +40,7 @@ public final class ModMenu extends Screen {
     private boolean searching;
     private int scroll;
     private Mod options;
+    private String optionsError = "";
     private int panelX;
     private int panelY;
     private int panelWidth;
@@ -249,7 +251,7 @@ public final class ModMenu extends Screen {
         float nameSize = Text.fit(canvas, mod.name(), 8, cardWidth - 8, 5);
         Text.drawCentered(canvas, mod.name(), x + cardWidth / 2.0F, y + ICON_AREA + 2, nameSize, 0xFFDDDDDD);
         int optionsY = y + CARD_HEIGHT - 2 * ROW - 12;
-        boolean hasOptions = !mod.options().isEmpty();
+        boolean hasOptions = !mod.options().isEmpty() || !mod.numbers().isEmpty();
         boolean hoverOptions = hasOptions && inside(mouseX, mouseY, x + 6, optionsY, cardWidth - 12, ROW);
         Widgets.pill(canvas, x + 6, optionsY, cardWidth - 12, ROW, !hasOptions ? Widgets.DISABLED : hoverOptions ? Widgets.HOVER : Widgets.FILL);
         float optionsWidth = Text.width(canvas, "Options", 7) + 15;
@@ -267,7 +269,7 @@ public final class ModMenu extends Screen {
     }
 
     private int optionsHeight() {
-        return 30 + options.options().size() * OPTION_ROW + PAD;
+        return 30 + (options.options().size() + options.numbers().size()) * OPTION_ROW + PAD;
     }
 
     private int optionsX() {
@@ -299,6 +301,18 @@ public final class ModMenu extends Screen {
             Widgets.toggle(canvas, x + OPTIONS_WIDTH - PAD - Widgets.TOGGLE_WIDTH - 5, rowY + (OPTION_ROW - Widgets.TOGGLE_HEIGHT) / 2 - 1, options.option(option));
             rowY += OPTION_ROW;
         }
+        for (NumberOption option : options.numbers()) {
+            Widgets.pill(canvas, x + PAD, rowY + 2, OPTIONS_WIDTH - 2 * PAD, OPTION_ROW - 6, Widgets.FILL);
+            Text.draw(canvas, option.label, x + PAD + 5, rowY + 9, 6, 0xFFDDDDDD);
+            int controlsX = x + OPTIONS_WIDTH - PAD - 70;
+            Widgets.pill(canvas, controlsX, rowY + 5, 16, 16, Widgets.HOVER);
+            Widgets.pill(canvas, controlsX + 54, rowY + 5, 16, 16, Widgets.HOVER);
+            Text.drawCentered(canvas, "-", controlsX + 8, rowY + 9, 7, 0xFFDDDDDD);
+            Text.drawCentered(canvas, options.number(option) + "x", controlsX + 35, rowY + 9, 7, 0xFFDDDDDD);
+            Text.drawCentered(canvas, "+", controlsX + 62, rowY + 9, 7, 0xFFDDDDDD);
+            rowY += OPTION_ROW;
+        }
+        if (!optionsError.isEmpty()) Text.draw(canvas, optionsError, x + PAD, y + optionsHeight() + 5, 6, 0xFFEBAFA3);
     }
 
     private static boolean inside(int mouseX, int mouseY, int x, int y, int w, int h) {
@@ -315,7 +329,12 @@ public final class ModMenu extends Screen {
             return;
         }
         if (options != null) {
-            clickOptions(mouseX, mouseY);
+            try {
+                optionsError = "";
+                clickOptions(mouseX, mouseY);
+            } catch (IllegalStateException failure) {
+                optionsError = "Could not save settings";
+            }
             return;
         }
         int centerY = panelY + HEADER / 2;
@@ -368,8 +387,9 @@ public final class ModMenu extends Screen {
             Mod mod = mods.get(index);
             if (inside(mouseX, mouseY, x + 6, y + CARD_HEIGHT - ROW - 6, cardWidth() - 12, ROW)) {
                 client.mods().toggle(mod);
-            } else if (inside(mouseX, mouseY, x + 6, y + CARD_HEIGHT - 2 * ROW - 12, cardWidth() - 12, ROW) && !mod.options().isEmpty()) {
+            } else if (inside(mouseX, mouseY, x + 6, y + CARD_HEIGHT - 2 * ROW - 12, cardWidth() - 12, ROW) && (!mod.options().isEmpty() || !mod.numbers().isEmpty())) {
                 options = mod;
+                optionsError = "";
             }
             return;
         }
@@ -408,6 +428,15 @@ public final class ModMenu extends Screen {
             if (inside(mouseX, mouseY, x + PAD, rowY + 2, OPTIONS_WIDTH - 2 * PAD, OPTION_ROW - 6)) {
                 options.setOption(option, !options.option(option));
                 return;
+            }
+            rowY += OPTION_ROW;
+        }
+        for (NumberOption option : options.numbers()) {
+            int controlsX = x + OPTIONS_WIDTH - PAD - 70;
+            if (inside(mouseX, mouseY, controlsX, rowY + 5, 16, 16)) {
+                options.setNumber(option, options.number(option) - 1);
+            } else if (inside(mouseX, mouseY, controlsX + 54, rowY + 5, 16, 16)) {
+                options.setNumber(option, options.number(option) + 1);
             }
             rowY += OPTION_ROW;
         }

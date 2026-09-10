@@ -69,6 +69,22 @@ public final class ModSettings {
         save();
     }
 
+    public Integer number(String id, String key) {
+        Map<String, Integer> values = data.numbers.get(id);
+        return values == null ? null : values.get(key);
+    }
+
+    public void setNumber(String id, String key, int value) {
+        Data next = copyData();
+        Map<String, Integer> values = next.numbers.get(id);
+        if (values == null) {
+            values = new HashMap<String, Integer>();
+            next.numbers.put(id, values);
+        }
+        values.put(key, value);
+        commit(next);
+    }
+
     public boolean global(GlobalSetting setting) {
         Boolean value = data.global.get(setting.id);
         return value == null ? setting.defaultValue : value;
@@ -90,7 +106,7 @@ public final class ModSettings {
 
     public boolean presetModified() {
         Snapshot saved = data.presets.get(data.activePreset);
-        return !data.mods.equals(saved.mods) || !data.options.equals(saved.options) || !data.hud.equals(saved.hud);
+        return !data.mods.equals(saved.mods) || !data.options.equals(saved.options) || !data.numbers.equals(saved.numbers) || !data.hud.equals(saved.hud);
     }
 
     public void createPreset(String name) {
@@ -274,6 +290,7 @@ public final class ModSettings {
         Map<String, Boolean> mods = new HashMap<String, Boolean>();
         Map<String, Layout> hud = new HashMap<String, Layout>();
         Map<String, Map<String, Boolean>> options = new HashMap<String, Map<String, Boolean>>();
+        Map<String, Map<String, Integer>> numbers = new HashMap<String, Map<String, Integer>>();
 
         Snapshot() {
         }
@@ -308,6 +325,15 @@ public final class ModSettings {
                 }
             }
             options = copiedOptions;
+            Map<String, Map<String, Integer>> copiedNumbers = new HashMap<String, Map<String, Integer>>();
+            if (source.numbers != null) {
+                for (Map.Entry<String, Map<String, Integer>> entry : source.numbers.entrySet()) {
+                    if (entry.getValue() != null) {
+                        copiedNumbers.put(entry.getKey(), new HashMap<String, Integer>(entry.getValue()));
+                    }
+                }
+            }
+            numbers = copiedNumbers;
         }
     }
 

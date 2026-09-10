@@ -10,6 +10,10 @@ import comet.core.mod.HudMod;
 import comet.core.mod.ModRegistry;
 import comet.core.mod.ModSettings;
 import comet.core.mod.OldAnimations;
+import comet.core.mod.Coordinates;
+import comet.core.mod.Keystrokes;
+import comet.core.mod.PingCounter;
+import comet.core.mod.Lighting;
 import comet.core.mod.ToggleSprint;
 import comet.core.ui.HudEditor;
 import comet.core.ui.ModMenu;
@@ -22,6 +26,7 @@ public final class CometClient {
     private final ModRegistry mods;
     private final ToggleSprint toggleSprint;
     private final OldAnimations oldAnimations = new OldAnimations();
+    private final Lighting lighting = new Lighting();
     private boolean shiftDown;
     private boolean menuOpen;
     private final RawMouse rawMouse = new RawMouse();
@@ -42,6 +47,10 @@ public final class CometClient {
         mods.register(new FpsCounter(host));
         mods.register(new CpsCounter());
         mods.register(toggleSprint);
+        mods.register(new Keystrokes(host));
+        mods.register(new Coordinates(host));
+        mods.register(new PingCounter(host));
+        mods.register(lighting);
         if (host.version().startsWith("1.8")) {
             mods.register(oldAnimations);
         }
@@ -76,6 +85,10 @@ public final class CometClient {
         if (host.inWorld() && !host.screenOpen()) {
             mods.keyState(key, pressed);
         }
+    }
+
+    public void lightmap(int[] colors) {
+        if (mods.isEnabled(lighting)) lighting.apply(colors);
     }
 
     public void releaseKeys() {

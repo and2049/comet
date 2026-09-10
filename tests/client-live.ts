@@ -104,6 +104,7 @@ try {
       'comet$fullscreen',
       'comet$hotbarScroll',
       'comet$rawMouse',
+      'comet$lightmap',
     ];
     if (instance.version === '1.8.9') hooks.push('comet$oldSwing', 'comet$useSwing');
     for (const hook of hooks)

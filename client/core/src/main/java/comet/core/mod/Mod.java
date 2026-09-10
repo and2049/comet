@@ -28,6 +28,19 @@ public abstract class Mod implements TickListener, KeyListener {
         return Collections.emptyList();
     }
 
+    public List<NumberOption> numbers() {
+        return Collections.emptyList();
+    }
+
+    public int number(NumberOption option) {
+        Integer value = settings == null ? null : settings.number(id(), option.id);
+        return value == null ? option.defaultValue : option.clamp(value);
+    }
+
+    public void setNumber(NumberOption option, int value) {
+        settings.setNumber(id(), option.id, option.clamp(value));
+    }
+
     void attach(ModSettings settings) {
         this.settings = settings;
     }
