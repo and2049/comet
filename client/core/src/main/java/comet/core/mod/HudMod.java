@@ -11,6 +11,10 @@ public abstract class HudMod extends Mod {
 
     public abstract void render(Canvas canvas);
 
+    public boolean visible() {
+        return true;
+    }
+
     protected void background(Canvas canvas, int width, int height) {
         if (global(GlobalSetting.HUD_BACKGROUND)) {
             canvas.roundedFill(0, 0, width, height, 3, 0x70000000);

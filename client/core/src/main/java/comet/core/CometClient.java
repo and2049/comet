@@ -4,6 +4,7 @@ import comet.core.bridge.Canvas;
 import comet.core.bridge.GameHost;
 import comet.core.bridge.Keys;
 import comet.core.mod.CpsCounter;
+import comet.core.mod.ClickStats;
 import comet.core.mod.FpsCounter;
 import comet.core.mod.HudLayout;
 import comet.core.mod.HudMod;
@@ -26,6 +27,7 @@ import comet.core.render.MotionBlurPass;
 public final class CometClient {
     private final GameHost host;
     private final ModRegistry mods;
+    private final ClickStats clickStats = new ClickStats();
     private final ToggleSprint toggleSprint;
     private final OldAnimations oldAnimations = new OldAnimations();
     private final Lighting lighting = new Lighting();
@@ -46,10 +48,10 @@ public final class CometClient {
 
     public CometClient(GameHost host) {
         this.host = host;
-        this.mods = new ModRegistry(new ModSettings(host.gameDirectory()));
+        this.mods = new ModRegistry(new ModSettings(host.gameDirectory()), clickStats::reset);
         this.toggleSprint = new ToggleSprint(host);
         mods.register(new FpsCounter(host));
-        mods.register(new CpsCounter());
+        mods.register(new CpsCounter(clickStats));
         mods.register(toggleSprint);
         mods.register(new Keystrokes(host));
         mods.register(new Coordinates(host));
@@ -79,7 +81,9 @@ public final class CometClient {
             openModMenu();
         }
         shiftDown = down;
+        if (host.screenOpen()) clickStats.reset();
         if (host.inWorld()) {
+            clickStats.prune();
             mods.tick();
         } else {
             mods.reset();
@@ -88,6 +92,7 @@ public final class CometClient {
 
     public void keyState(int key, boolean pressed) {
         if (host.inWorld() && !host.screenOpen()) {
+            clickStats.record(key, pressed, key == Keys.MOUSE_LEFT && pressed && host.usingItem());
             mods.keyState(key, pressed);
         }
     }
@@ -118,7 +123,12 @@ public final class CometClient {
     }
 
     public void releaseKeys() {
+        clickStats.reset();
         mods.releaseKeys();
+    }
+
+    public ClickStats clickStats() {
+        return clickStats;
     }
 
     public boolean holdsSprint() {

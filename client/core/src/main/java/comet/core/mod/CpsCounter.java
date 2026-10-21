@@ -1,28 +1,33 @@
 package comet.core.mod;
 
 import comet.core.bridge.Canvas;
-import comet.core.bridge.Keys;
-import java.util.ArrayDeque;
-import java.util.Collections;
-import java.util.Deque;
+import java.util.Arrays;
 import java.util.List;
 import java.util.function.LongSupplier;
 
 public final class CpsCounter extends HudMod {
     static final int MIN_DIGITS = 2;
     private static final int PADDING = 3;
-    private static final long WINDOW = 1000L;
-    private static final Option LABEL = new Option("label", "Show CPS label", false);
-    private final Deque<Long> left = new ArrayDeque<Long>();
-    private final Deque<Long> right = new ArrayDeque<Long>();
-    private final LongSupplier clock;
+    public static final Option LABEL = new Option("label", "Show CPS label", false);
+    public static final Option FILTER = new Option("ignoreUsingItem", "Ignore left clicks while using items", false);
+    public static final Option BRACKETS = new Option("brackets", "Brackets", true);
+    public static final NumberOption BUTTONS = new NumberOption("buttons", "Display", 0, 0, 2, "", "Both", "Left", "Right");
+    public static final NumberOption ORDER = new NumberOption("labelOrder", "Label position", 0, 0, 1, "", "Before", "After");
+    private final ClickStats stats;
+    private final boolean shared;
 
     public CpsCounter() {
         this(() -> System.nanoTime() / 1000000L);
     }
 
     CpsCounter(LongSupplier clock) {
-        this.clock = clock;
+        this.stats = new ClickStats(clock);
+        this.shared = false;
+    }
+
+    public CpsCounter(ClickStats stats) {
+        this.stats = stats;
+        this.shared = true;
     }
 
     @Override
@@ -42,7 +47,12 @@ public final class CpsCounter extends HudMod {
 
     @Override
     public List<Option> options() {
-        return Collections.singletonList(LABEL);
+        return Arrays.asList(LABEL, FILTER, BRACKETS);
+    }
+
+    @Override
+    public List<NumberOption> numbers() {
+        return Arrays.asList(BUTTONS, ORDER);
     }
 
     @Override
@@ -57,46 +67,30 @@ public final class CpsCounter extends HudMod {
 
     @Override
     public void keyState(int key, boolean pressed) {
-        if (!pressed) {
-            return;
-        }
-        if (key == Keys.MOUSE_LEFT) {
-            left.addLast(clock.getAsLong());
-        } else if (key == Keys.MOUSE_RIGHT) {
-            right.addLast(clock.getAsLong());
-        }
-        tick();
+        if (!shared) stats.record(key, pressed, false);
     }
 
     @Override
     public void tick() {
-        count(left);
-        count(right);
+        stats.prune();
     }
 
     @Override
     public void reset() {
-        left.clear();
-        right.clear();
-    }
-
-    private int count(Deque<Long> clicks) {
-        long cutoff = clock.getAsLong() - WINDOW;
-        while (!clicks.isEmpty() && clicks.peekFirst() <= cutoff) {
-            clicks.removeFirst();
-        }
-        return clicks.size();
+        if (!shared) stats.reset();
     }
 
     @Override
     public int width(Canvas canvas) {
-        return layout(canvas).width + PADDING * 2;
+        return (number(BUTTONS) == 0 ? layout(canvas).width : canvas.textWidth(label())) + PADDING * 2;
     }
 
     @Override
     public int horizontalExpansion(Canvas canvas) {
+        if (number(BUTTONS) != 0) return 0;
         Layout current = layout(canvas);
-        return (current.width - layout(canvas, 0, 0, current.prefix).width) / 2;
+        return (current.width - layout(canvas, 0, 0, current.prefix).width
+                - canvas.textWidth(suffix()) + (option(BRACKETS) ? 0 : canvas.textWidth("[  ]"))) / 2;
     }
 
     @Override
@@ -106,6 +100,11 @@ public final class CpsCounter extends HudMod {
 
     @Override
     public void render(Canvas canvas) {
+        if (number(BUTTONS) != 0) {
+            background(canvas, width(canvas), height(canvas));
+            text(canvas, label(), PADDING, PADDING);
+            return;
+        }
         Layout layout = layout(canvas);
         background(canvas, layout.width + PADDING * 2, height(canvas));
         int x = PADDING;
@@ -113,19 +112,41 @@ public final class CpsCounter extends HudMod {
             text(canvas, layout.prefix, x, PADDING);
             x += canvas.textWidth(layout.prefix);
         }
-        text(canvas, "[ ", x, PADDING);
-        x += canvas.textWidth("[ ");
+        if (option(BRACKETS)) {
+            text(canvas, "[ ", x, PADDING);
+            x += canvas.textWidth("[ ");
+        }
         text(canvas, layout.left, x + layout.slot - canvas.textWidth(layout.left), PADDING);
         x += layout.slot;
         text(canvas, " | ", x, PADDING);
         x += canvas.textWidth(" | ");
         text(canvas, layout.right, x, PADDING);
         x += layout.slot;
-        text(canvas, " ]", x, PADDING);
+        if (option(BRACKETS)) {
+            text(canvas, " ]", x, PADDING);
+            x += canvas.textWidth(" ]");
+        }
+        if (!suffix().isEmpty()) text(canvas, suffix(), x, PADDING);
     }
 
     private Layout layout(Canvas canvas) {
-        return layout(canvas, count(left), count(right), option(LABEL) ? "CPS " : "");
+        Layout base = layout(canvas, stats.left(option(FILTER)), stats.right(), prefix());
+        return new Layout(base.left, base.right, base.prefix, base.slot,
+                base.width + canvas.textWidth(suffix()) - (option(BRACKETS) ? 0 : canvas.textWidth("[  ]")));
+    }
+
+    private String prefix() {
+        return option(LABEL) && number(ORDER) == 0 ? "CPS " : "";
+    }
+
+    private String suffix() {
+        return option(LABEL) && number(ORDER) == 1 ? " CPS" : "";
+    }
+
+    public String label() {
+        String value = number(BUTTONS) == 1 ? Integer.toString(stats.left(option(FILTER))) : number(BUTTONS) == 2
+                ? Integer.toString(stats.right()) : stats.left(option(FILTER)) + " | " + stats.right();
+        return prefix() + (option(BRACKETS) ? "[ " + value + " ]" : value) + suffix();
     }
 
     static Layout layout(Canvas canvas, int leftClicks, int rightClicks, String prefix) {

@@ -30,6 +30,8 @@ public final class CoreTests {
         Path root = Files.createTempDirectory(base, "comet-core-");
         try {
             cps(root.resolve("cps"));
+            CpsParityTests.run(root.resolve("cps-parity"));
+            OptionsParityTests.run(root.resolve("options-parity"));
             toggles(root.resolve("toggle"));
             settings(root.resolve("settings"));
             presets(root.resolve("presets"));
@@ -456,9 +458,12 @@ public final class CoreTests {
         host.screen.draw(host.canvas, -1, -1);
         host.canvas.save("lighting-options");
         int previous = lighting.number(Lighting.MULTIPLIER);
-        host.screen.mouseDown(311, 174, 0);
+        int optionRows = lighting.options().size() + lighting.numbers().size() + lighting.texts().size() + lighting.actions().size();
+        int multiplierY = (300 - Math.min(270, 50 + optionRows * 28)) / 2 + 40
+                + (lighting.options().size() + lighting.numbers().indexOf(Lighting.MULTIPLIER)) * 28;
+        host.screen.mouseDown(291, multiplierY, 0);
         check(lighting.number(Lighting.MULTIPLIER) == previous - 1, "Multiplier minus button changes the numeric setting");
-        host.screen.mouseDown(365, 174, 0);
+        host.screen.mouseDown(395, multiplierY, 0);
         check(lighting.number(Lighting.MULTIPLIER) == previous, "Multiplier plus button changes the numeric setting");
     }
 
@@ -684,6 +689,7 @@ public final class CoreTests {
                     case "version": return version;
                     case "inWorld": return world;
                     case "screenOpen": return screen != null;
+                    case "usingItem": return false;
                     case "keyDown": return physicalKey == (Integer) args[0] || shift && (Integer) args[0] == Keys.RIGHT_SHIFT;
                     case "controlKey": return new int[] {forwardKey, 30, 31, 32, 57, -100, -99}[((comet.core.bridge.Control) args[0]).ordinal()];
                     case "keyName":

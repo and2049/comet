@@ -32,6 +32,36 @@ public abstract class Mod implements TickListener, KeyListener {
         return Collections.emptyList();
     }
 
+    public List<TextOption> texts() {
+        return Collections.emptyList();
+    }
+
+    public List<ActionOption> actions() {
+        return Collections.emptyList();
+    }
+
+    public List<HudMod> elements() {
+        return this instanceof HudMod ? Collections.singletonList((HudMod) this) : Collections.emptyList();
+    }
+
+    protected <T extends HudMod> T bindElement(T element) {
+        element.attach(settings);
+        return element;
+    }
+
+    public String text(TextOption option) {
+        String value = settings == null ? null : settings.text(id(), option.id);
+        return value == null ? option.defaultValue : option.sanitize(value);
+    }
+
+    public void setText(TextOption option, String value) {
+        settings.setText(id(), option.id, option.sanitize(value));
+    }
+
+    public double decimal(NumberOption option) {
+        return option.value(number(option));
+    }
+
     public int number(NumberOption option) {
         Integer value = settings == null ? null : settings.number(id(), option.id);
         return value == null ? option.defaultValue : option.clamp(value);

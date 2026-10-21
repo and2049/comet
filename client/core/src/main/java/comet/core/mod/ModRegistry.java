@@ -9,10 +9,16 @@ import java.util.Set;
 public final class ModRegistry {
     private final List<Mod> mods = new ArrayList<Mod>();
     private final ModSettings settings;
+    private final Runnable resetShared;
     private final Set<Integer> pressedKeys = new HashSet<Integer>();
 
     public ModRegistry(ModSettings settings) {
+        this(settings, () -> {});
+    }
+
+    public ModRegistry(ModSettings settings, Runnable resetShared) {
         this.settings = settings;
+        this.resetShared = resetShared;
     }
 
     public ModSettings settings() {
@@ -41,8 +47,8 @@ public final class ModRegistry {
     public List<HudMod> hud() {
         List<HudMod> result = new ArrayList<HudMod>();
         for (Mod mod : enabled()) {
-            if (mod instanceof HudMod) {
-                result.add((HudMod) mod);
+            for (HudMod element : mod.elements()) {
+                if (element.visible()) result.add(element);
             }
         }
         return result;
@@ -95,6 +101,7 @@ public final class ModRegistry {
     }
 
     public void reset() {
+        resetShared.run();
         releaseKeys();
         for (Mod mod : mods) {
             mod.reset();
@@ -106,6 +113,7 @@ public final class ModRegistry {
             if (mod instanceof HudMod) {
                 ((HudMod) mod).preview(enabled);
             }
+            for (HudMod element : mod.elements()) element.preview(enabled);
         }
     }
 }

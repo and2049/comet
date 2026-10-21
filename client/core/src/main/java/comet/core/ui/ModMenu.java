@@ -5,8 +5,6 @@ import comet.core.bridge.Canvas;
 import comet.core.bridge.Keys;
 import comet.core.mod.Category;
 import comet.core.mod.Mod;
-import comet.core.mod.Option;
-import comet.core.mod.NumberOption;
 import comet.core.text.Text;
 import java.util.ArrayList;
 import java.util.List;
@@ -24,8 +22,6 @@ public final class ModMenu extends Screen {
     private static final int ICON_AREA = 44;
     private static final int ROW = 18;
     private static final int SEARCH_WIDTH = 84;
-    private static final int OPTIONS_WIDTH = 250;
-    private static final int OPTION_ROW = 28;
     private static final int MAX_QUERY = 24;
     private static final float TRACKING = 0.9F;
     private static final int ACCENT = 0xFFACE77A;
@@ -40,7 +36,7 @@ public final class ModMenu extends Screen {
     private boolean searching;
     private int scroll;
     private Mod options;
-    private String optionsError = "";
+    private ModOptions optionPanel;
     private int panelX;
     private int panelY;
     private int panelWidth;
@@ -251,7 +247,7 @@ public final class ModMenu extends Screen {
         float nameSize = Text.fit(canvas, mod.name(), 8, cardWidth - 8, 5);
         Text.drawCentered(canvas, mod.name(), x + cardWidth / 2.0F, y + ICON_AREA + 2, nameSize, 0xFFDDDDDD);
         int optionsY = y + CARD_HEIGHT - 2 * ROW - 12;
-        boolean hasOptions = !mod.options().isEmpty() || !mod.numbers().isEmpty();
+        boolean hasOptions = ModOptions.available(mod);
         boolean hoverOptions = hasOptions && inside(mouseX, mouseY, x + 6, optionsY, cardWidth - 12, ROW);
         Widgets.pill(canvas, x + 6, optionsY, cardWidth - 12, ROW, !hasOptions ? Widgets.DISABLED : hoverOptions ? Widgets.HOVER : Widgets.FILL);
         float optionsWidth = Text.width(canvas, "Options", 7) + 15;
@@ -268,53 +264,8 @@ public final class ModMenu extends Screen {
         Text.draw(canvas, state, stateX + 10, toggleY + 5, 7, enabled ? 0xFFDAEACA : 0xFF999999);
     }
 
-    private int optionsHeight() {
-        return 30 + (options.options().size() + options.numbers().size()) * OPTION_ROW + PAD;
-    }
-
-    private int optionsX() {
-        return (width - OPTIONS_WIDTH) / 2;
-    }
-
-    private int optionsY() {
-        return (height - optionsHeight()) / 2;
-    }
-
     private void drawOptions(Canvas canvas, int mouseX, int mouseY) {
-        canvas.fill(0, 0, width, height, 0x60000000);
-        int x = optionsX();
-        int y = optionsY();
-        Widgets.pill(canvas, x, y, OPTIONS_WIDTH, optionsHeight(), 0xF4141414);
-        ModIcons.draw(canvas, options.id(), x + PAD, y + PAD - 2, 14);
-        Text.draw(canvas, options.name(), x + PAD + 20, y + PAD, 9, 0xFFFFFFFF);
-        int closeX = x + OPTIONS_WIDTH - PAD - CHIP;
-        boolean hover = inside(mouseX, mouseY, closeX, y + PAD - 2, CHIP, CHIP);
-        Widgets.pill(canvas, closeX, y + PAD - 2, CHIP, CHIP, hover ? Widgets.HOVER : CHIP_FILL);
-        ModIcons.draw(canvas, "close", closeX + 2, y + PAD, 10);
-        int rowY = y + 30;
-        for (Option option : options.options()) {
-            Widgets.pill(canvas, x + PAD, rowY + 2, OPTIONS_WIDTH - 2 * PAD, OPTION_ROW - 6,
-                    inside(mouseX, mouseY, x + PAD, rowY + 2, OPTIONS_WIDTH - 2 * PAD, OPTION_ROW - 6) ? Widgets.HOVER : Widgets.FILL);
-            ModIcons.draw(canvas, option.id, x + PAD + 5, rowY + 6, 13);
-            float labelSize = Text.fit(canvas, option.label, 7, OPTIONS_WIDTH - 2 * PAD - Widgets.TOGGLE_WIDTH - 38, 5);
-            Text.draw(canvas, option.label, x + PAD + 24, rowY + (OPTION_ROW - Text.height(canvas, option.label, labelSize)) / 2 - 1, labelSize, 0xFFDDDDDD);
-            Widgets.toggle(canvas, x + OPTIONS_WIDTH - PAD - Widgets.TOGGLE_WIDTH - 5, rowY + (OPTION_ROW - Widgets.TOGGLE_HEIGHT) / 2 - 1, options.option(option));
-            rowY += OPTION_ROW;
-        }
-        for (NumberOption option : options.numbers()) {
-            Widgets.pill(canvas, x + PAD, rowY + 2, OPTIONS_WIDTH - 2 * PAD, OPTION_ROW - 6, Widgets.FILL);
-            Text.draw(canvas, option.label, x + PAD + 5, rowY + 9, 6, 0xFFDDDDDD);
-            int controlsX = x + OPTIONS_WIDTH - PAD - 70;
-            Widgets.pill(canvas, controlsX, rowY + 5, 16, 16, Widgets.HOVER);
-            Widgets.pill(canvas, controlsX + 54, rowY + 5, 16, 16, Widgets.HOVER);
-            Text.drawCentered(canvas, "-", controlsX + 8, rowY + 9, 7, 0xFFDDDDDD);
-            String value = option.display(options.number(option));
-            float valueSize = Text.fit(canvas, value, 7, 34, 5);
-            Text.drawCentered(canvas, value, controlsX + 35, rowY + 9, valueSize, 0xFFDDDDDD);
-            Text.drawCentered(canvas, "+", controlsX + 62, rowY + 9, 7, 0xFFDDDDDD);
-            rowY += OPTION_ROW;
-        }
-        if (!optionsError.isEmpty()) Text.draw(canvas, optionsError, x + PAD, y + optionsHeight() + 5, 6, 0xFFEBAFA3);
+        optionPanel.draw(canvas, width, height, mouseX, mouseY);
     }
 
     private static boolean inside(int mouseX, int mouseY, int x, int y, int w, int h) {
@@ -323,20 +274,16 @@ public final class ModMenu extends Screen {
 
     @Override
     public void mouseDown(int mouseX, int mouseY, int button) {
+        if (options != null) {
+            optionPanel.click(mouseX, mouseY, button);
+            if (!optionPanel.isOpen()) options = null;
+            return;
+        }
         if (button != 0) {
             return;
         }
         if (presets.modal()) {
             presets.clickDialog(client.host().canvas(), mouseX, mouseY);
-            return;
-        }
-        if (options != null) {
-            try {
-                optionsError = "";
-                clickOptions(mouseX, mouseY);
-            } catch (IllegalStateException failure) {
-                optionsError = "Could not save settings";
-            }
             return;
         }
         int centerY = panelY + HEADER / 2;
@@ -389,9 +336,9 @@ public final class ModMenu extends Screen {
             Mod mod = mods.get(index);
             if (inside(mouseX, mouseY, x + 6, y + CARD_HEIGHT - ROW - 6, cardWidth() - 12, ROW)) {
                 client.mods().toggle(mod);
-            } else if (inside(mouseX, mouseY, x + 6, y + CARD_HEIGHT - 2 * ROW - 12, cardWidth() - 12, ROW) && (!mod.options().isEmpty() || !mod.numbers().isEmpty())) {
+            } else if (inside(mouseX, mouseY, x + 6, y + CARD_HEIGHT - 2 * ROW - 12, cardWidth() - 12, ROW) && ModOptions.available(mod)) {
                 options = mod;
-                optionsError = "";
+                optionPanel = new ModOptions(mod, client.host());
             }
             return;
         }
@@ -418,34 +365,12 @@ public final class ModMenu extends Screen {
         }
     }
 
-    private void clickOptions(int mouseX, int mouseY) {
-        int x = optionsX();
-        int y = optionsY();
-        if (inside(mouseX, mouseY, x + OPTIONS_WIDTH - PAD - CHIP, y + PAD - 2, CHIP, CHIP) || !inside(mouseX, mouseY, x, y, OPTIONS_WIDTH, optionsHeight())) {
-            options = null;
-            return;
-        }
-        int rowY = y + 30;
-        for (Option option : options.options()) {
-            if (inside(mouseX, mouseY, x + PAD, rowY + 2, OPTIONS_WIDTH - 2 * PAD, OPTION_ROW - 6)) {
-                options.setOption(option, !options.option(option));
-                return;
-            }
-            rowY += OPTION_ROW;
-        }
-        for (NumberOption option : options.numbers()) {
-            int controlsX = x + OPTIONS_WIDTH - PAD - 70;
-            if (inside(mouseX, mouseY, controlsX, rowY + 5, 16, 16)) {
-                options.setNumber(option, options.number(option) - 1);
-            } else if (inside(mouseX, mouseY, controlsX + 54, rowY + 5, 16, 16)) {
-                options.setNumber(option, options.number(option) + 1);
-            }
-            rowY += OPTION_ROW;
-        }
-    }
-
     @Override
     public void scroll(int mouseX, int mouseY, int direction) {
+        if (options != null) {
+            optionPanel.scroll(direction);
+            return;
+        }
         if (options == null && !presets.modal() && direction != 0) {
             if (presets.scroll(mouseX, mouseY, direction)) {
                 return;
@@ -463,6 +388,11 @@ public final class ModMenu extends Screen {
 
     @Override
     public boolean key(char character, int code) {
+        if (options != null) {
+            optionPanel.key(character, code);
+            if (!optionPanel.isOpen()) options = null;
+            return true;
+        }
         if (code == Keys.RIGHT_SHIFT && openingShift) {
             return true;
         }

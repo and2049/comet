@@ -8,6 +8,10 @@ public interface GameHost {
 
     boolean screenOpen();
 
+    default boolean usingItem() {
+        return false;
+    }
+
     void openScreen(Screen screen);
 
     void closeScreen();

@@ -36,6 +36,11 @@ public final class Host189 implements GameHost {
     }
 
     @Override
+    public boolean usingItem() {
+        return mc.thePlayer != null && mc.thePlayer.isUsingItem();
+    }
+
+    @Override
     public void openScreen(Screen screen) {
         mc.displayGuiScreen(new CometGuiScreen(screen));
         screen.opened();
