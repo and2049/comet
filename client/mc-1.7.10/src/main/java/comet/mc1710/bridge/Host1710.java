@@ -6,6 +6,7 @@ import comet.core.bridge.CoordinateBackend;
 import comet.core.bridge.GameHost;
 import comet.core.bridge.LightingBackend;
 import comet.core.bridge.MovementBackend;
+import comet.core.bridge.PingBackend;
 import comet.core.bridge.VanillaScreen;
 import comet.core.ui.Screen;
 import comet.mc1710.mixin.MinecraftAccessor;
@@ -30,6 +31,12 @@ public final class Host1710 implements GameHost {
     private static final ResourceLocation BLUR = new ResourceLocation("shaders/post/blur.json");
     private final Minecraft mc = Minecraft.getMinecraft();
     private final CoordinateBackend coordinates = new Coordinates1710();
+    private final PingBackend pingBackend = new Ping1710();
+
+    @Override
+    public PingBackend pingBackend() {
+        return pingBackend;
+    }
 
     @Override
     public CoordinateBackend coordinates() {

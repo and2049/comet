@@ -31,6 +31,7 @@ public final class CometClient {
     private final ToggleSprint toggleSprint;
     private final OldAnimations oldAnimations = new OldAnimations();
     private final Lighting lighting;
+    private final PingCounter pingCounter;
     private final MotionBlur motionBlur = new MotionBlur();
     private MotionBlurPass blurPass;
     private boolean shiftDown;
@@ -56,7 +57,8 @@ public final class CometClient {
         mods.register(toggleSprint);
         mods.register(new Keystrokes(host, clickStats));
         mods.register(new Coordinates(host));
-        mods.register(new PingCounter(host));
+        pingCounter = new PingCounter(host);
+        mods.register(pingCounter);
         mods.register(lighting);
         mods.register(motionBlur);
         if (host.version().startsWith("1.8")) {
@@ -131,6 +133,10 @@ public final class CometClient {
 
     public ToggleSprint toggleSprint() {
         return toggleSprint;
+    }
+
+    public PingCounter pingCounter() {
+        return pingCounter;
     }
 
     public ClickStats clickStats() {

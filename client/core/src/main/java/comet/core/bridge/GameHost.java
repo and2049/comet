@@ -24,6 +24,10 @@ public interface GameHost {
         return MovementBackend.NONE;
     }
 
+    default PingBackend pingBackend() {
+        return PingBackend.NONE;
+    }
+
     void openScreen(Screen screen);
 
     void closeScreen();

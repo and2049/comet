@@ -103,6 +103,7 @@ try {
       'comet$release',
       'comet$movement',
       'comet$sprint',
+      'comet$pingNametag',
       'comet$fullscreen',
       'comet$hotbarScroll',
       'comet$rawMouse',
