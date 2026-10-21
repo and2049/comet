@@ -2,6 +2,7 @@ package comet.mc1710.bridge;
 
 import comet.core.bridge.Canvas;
 import comet.core.bridge.Control;
+import comet.core.bridge.CoordinateBackend;
 import comet.core.bridge.GameHost;
 import comet.core.bridge.LightingBackend;
 import comet.core.bridge.VanillaScreen;
@@ -27,6 +28,12 @@ import net.minecraft.client.gui.GuiPlayerInfo;
 public final class Host1710 implements GameHost {
     private static final ResourceLocation BLUR = new ResourceLocation("shaders/post/blur.json");
     private final Minecraft mc = Minecraft.getMinecraft();
+    private final CoordinateBackend coordinates = new Coordinates1710();
+
+    @Override
+    public CoordinateBackend coordinates() {
+        return coordinates;
+    }
 
     @Override
     public LightingBackend lighting() {

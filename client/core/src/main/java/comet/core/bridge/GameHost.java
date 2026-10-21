@@ -16,6 +16,10 @@ public interface GameHost {
         return LightingBackend.NONE;
     }
 
+    default CoordinateBackend coordinates() {
+        return CoordinateBackend.NONE;
+    }
+
     void openScreen(Screen screen);
 
     void closeScreen();
