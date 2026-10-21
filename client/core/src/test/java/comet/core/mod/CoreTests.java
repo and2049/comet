@@ -32,6 +32,7 @@ public final class CoreTests {
             cps(root.resolve("cps"));
             CpsParityTests.run(root.resolve("cps-parity"));
             OptionsParityTests.run(root.resolve("options-parity"));
+            FpsParityTests.run(root.resolve("fps-parity"));
             toggles(root.resolve("toggle"));
             settings(root.resolve("settings"));
             presets(root.resolve("presets"));
