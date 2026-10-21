@@ -139,6 +139,10 @@ public final class CometClient {
         return pingCounter;
     }
 
+    public OldAnimations oldAnimations() {
+        return oldAnimations;
+    }
+
     public ClickStats clickStats() {
         return clickStats;
     }

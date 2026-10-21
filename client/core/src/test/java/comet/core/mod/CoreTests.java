@@ -38,6 +38,7 @@ public final class CoreTests {
             CoordinatesParityTests.run(root.resolve("coordinates-parity"));
             ToggleParityTests.run(root.resolve("toggle-parity"));
             PingParityTests.run(root.resolve("ping-parity"));
+            VisualsParityTests.run(root.resolve("visuals-parity"));
             toggles(root.resolve("toggle"));
             settings(root.resolve("settings"));
             presets(root.resolve("presets"));

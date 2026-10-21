@@ -19,7 +19,13 @@
     "KeyBindingMixin",
     "MovementMixin",
     "NametagMixin",
-    "ItemRendererMixin"
+    "ItemRendererMixin",
+    "EntityRendererMixin",
+    "GuiIngameHealthMixin",
+    "RenderItemMixin",
+    "LayerHeldItemMixin",
+    "ItemFoodAccessor",
+    "PlayerControllerAccessor"
   ],
   "injectors": {
     "defaultRequire": 1

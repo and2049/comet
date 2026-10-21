@@ -114,7 +114,22 @@ try {
       'comet$camera',
       'comet$motionBlur',
     ];
-    if (instance.version === '1.8.9') hooks.push('comet$oldSwing', 'comet$useSwing');
+    if (instance.version === '1.8.9')
+      hooks.push(
+        'comet$oldSwing',
+        'comet$useSwing',
+        'comet$alwaysSwing',
+        'comet$useWhileDigging',
+        'comet$eyeHeight',
+        'comet$hurtCameraShake',
+        'comet$healthThreshold',
+        'comet$oldGlint',
+        'comet$guiContext',
+        'comet$thirdPersonHeldItems',
+        'comet$oldItemTransforms',
+        'comet$oldBow',
+        'comet$blockEquip',
+      );
     for (const hook of hooks)
       assert(
         classes.some(bytes => bytes.includes(Buffer.from(hook))),
