@@ -22,9 +22,25 @@ public final class MotionBlurPass {
             + "uniform sampler2D history;\n"
             + "uniform mat4 reproject;\n"
             + "uniform float weight;\n"
+            + "uniform int algorithm;\n"
+            + "uniform float factor;\n"
             + "uniform vec2 resolution;\n"
             + "varying vec2 uv;\n"
             + "void main() {\n"
+            + "  vec4 current = texture2D(frame, uv);\n"
+            + "  if (algorithm == -1) { gl_FragColor = current; return; }\n"
+            + "  if (algorithm != " + MotionBlur.HYBRID + ") {\n"
+            + "    vec4 previous = texture2D(history, uv);\n"
+            + "    vec3 color;\n"
+            + "    if (algorithm == " + MotionBlur.DECAYING_MAX + ") color = max(previous.rgb * factor, current.rgb);\n"
+            + "    else if (algorithm == " + MotionBlur.FRAME_BLEND + ") color = mix(previous.rgb, current.rgb, factor);\n"
+            + "    else {\n"
+            + "      float retention = max(0.0, min(previous.a - 0.325, previous.a * factor * 0.95));\n"
+            + "      color = previous.rgb * retention + current.rgb * (1.0 - retention);\n"
+            + "    }\n"
+            + "    gl_FragColor = vec4(color, 1.0);\n"
+            + "    return;\n"
+            + "  }\n"
             + "  vec2 ndc = uv * 2.0 - 1.0;\n"
             + "  float peripheral = mix(0.3, 1.0, smoothstep(0.0, 0.9, length(ndc)));\n"
             + "  vec4 q = reproject * vec4(ndc, 1.0, 1.0);\n"
@@ -76,11 +92,13 @@ public final class MotionBlurPass {
     }
 
     public void apply(MotionBlur mod) {
-        if (failed || !captured) return;
+        boolean hybrid = mod.hybrid();
+        if (failed || (hybrid && !captured)) return;
+        if (!captured) captureNanos = System.nanoTime();
         captured = false;
         if (!GLContext.getCapabilities().OpenGL20 || !GLContext.getCapabilities().GL_EXT_framebuffer_object
-                || !GLContext.getCapabilities().GL_ARB_texture_float) {
-            fail("OpenGL 2.0, floating-point textures and framebuffer objects are required");
+                || (hybrid && !GLContext.getCapabilities().GL_ARB_texture_float)) {
+            fail("OpenGL 2.0 and framebuffer objects are required; Hybrid also needs floating-point textures");
             return;
         }
         ints.clear();
@@ -90,19 +108,19 @@ public final class MotionBlurPass {
         int viewWidth = ints.get(2);
         int viewHeight = ints.get(3);
         if (viewWidth <= 0 || viewHeight <= 0) return;
-        if (viewWidth != width || viewHeight != height) {
+        int selected = mod.number(MotionBlur.ALGORITHM);
+        if (viewWidth != width || viewHeight != height || hybrid != (algorithm == MotionBlur.HYBRID)) {
             release();
             width = viewWidth;
             height = viewHeight;
         }
-        int selected = mod.number(MotionBlur.ALGORITHM);
         double frameMs = (captureNanos - previousCaptureNanos) / 1e6;
-        if (selected != algorithm || previousCaptureNanos == 0 || frameMs <= 0 || frameMs > 100) {
+        if (hybrid && (previousCaptureNanos == 0 || frameMs <= 0 || frameMs > 100)) {
             historyValid = false;
             velocity.reset();
         }
         algorithm = selected;
-        float[] transform = historyValid
+        float[] transform = hybrid && historyValid
                 ? velocity.update(Reprojection.matrix(previousProjection, previousModelview, projection, modelview), frameMs, mod.shutterMs())
                 : BlurVelocity.identity();
         int previousProgram = GL11.glGetInteger(GL20.GL_CURRENT_PROGRAM);
@@ -130,11 +148,12 @@ public final class MotionBlurPass {
             GL11.glColorMask(true, true, true, true);
             GL11.glColor4f(1F, 1F, 1F, 1F);
             GL13.glActiveTexture(GL13.GL_TEXTURE0);
-            frameTexture = texture(frameTexture, GL11.GL_RGB8);
+            frameTexture = texture(frameTexture, hybrid ? GL11.GL_RGB8 : GL11.GL_RGBA8);
             GL11.glCopyTexSubImage2D(GL11.GL_TEXTURE_2D, 0, 0, 0, x, y, width, height);
-            historyTexture = texture(historyTexture, ARBTextureFloat.GL_RGBA16F_ARB);
+            int historyFormat = hybrid ? ARBTextureFloat.GL_RGBA16F_ARB : GL11.GL_RGBA8;
+            historyTexture = texture(historyTexture, historyFormat);
             if (!historyValid) GL11.glCopyTexSubImage2D(GL11.GL_TEXTURE_2D, 0, 0, 0, x, y, width, height);
-            outputTexture = texture(outputTexture, ARBTextureFloat.GL_RGBA16F_ARB);
+            outputTexture = texture(outputTexture, historyFormat);
             if (framebuffer == 0) framebuffer = EXTFramebufferObject.glGenFramebuffersEXT();
             EXTFramebufferObject.glBindFramebufferEXT(EXTFramebufferObject.GL_FRAMEBUFFER_EXT, framebuffer);
             EXTFramebufferObject.glFramebufferTexture2DEXT(EXTFramebufferObject.GL_FRAMEBUFFER_EXT,
@@ -142,13 +161,15 @@ public final class MotionBlurPass {
             GL11.glDrawBuffer(EXTFramebufferObject.GL_COLOR_ATTACHMENT0_EXT);
             if (EXTFramebufferObject.glCheckFramebufferStatusEXT(EXTFramebufferObject.GL_FRAMEBUFFER_EXT)
                     != EXTFramebufferObject.GL_FRAMEBUFFER_COMPLETE_EXT) {
-                throw new IllegalStateException("Floating-point history framebuffer is incomplete");
+                throw new IllegalStateException("Motion blur framebuffer is incomplete");
             }
             shader();
             GL11.glViewport(0, 0, width, height);
             GL20.glUseProgram(program);
             GL20.glUniform1i(GL20.glGetUniformLocation(program, "frame"), 0);
             GL20.glUniform1i(GL20.glGetUniformLocation(program, "history"), 1);
+            GL20.glUniform1i(GL20.glGetUniformLocation(program, "algorithm"), selected);
+            GL20.glUniform1f(GL20.glGetUniformLocation(program, "factor"), mod.frameFactor());
             GL20.glUniform2f(GL20.glGetUniformLocation(program, "resolution"), width, height);
             GL20.glUniform1f(GL20.glGetUniformLocation(program, "weight"),
                     historyValid ? MotionBlur.weight(mod.trailStrength(), frameMs) : 0F);
@@ -161,19 +182,18 @@ public final class MotionBlurPass {
             quad();
             EXTFramebufferObject.glBindFramebufferEXT(EXTFramebufferObject.GL_FRAMEBUFFER_EXT, previousFramebuffer);
             GL11.glViewport(x, y, width, height);
-            GL20.glUseProgram(0);
-            GL11.glDisable(GL11.GL_TEXTURE_2D);
+            GL20.glUniform1i(GL20.glGetUniformLocation(program, "algorithm"), -1);
             GL13.glActiveTexture(GL13.GL_TEXTURE0);
-            GL11.glEnable(GL11.GL_TEXTURE_2D);
             GL11.glBindTexture(GL11.GL_TEXTURE_2D, outputTexture);
-            GL11.glMatrixMode(GL11.GL_TEXTURE);
-            GL11.glPushMatrix();
-            GL11.glLoadIdentity();
             quad();
-            GL11.glPopMatrix();
-            int swap = historyTexture;
-            historyTexture = outputTexture;
-            outputTexture = swap;
+            if (hybrid) {
+                int swap = historyTexture;
+                historyTexture = outputTexture;
+                outputTexture = swap;
+            } else {
+                GL11.glBindTexture(GL11.GL_TEXTURE_2D, historyTexture);
+                GL11.glCopyTexSubImage2D(GL11.GL_TEXTURE_2D, 0, 0, 0, x, y, width, height);
+            }
             historyValid = true;
         } catch (RuntimeException error) {
             fail(error.getMessage());
@@ -252,10 +272,13 @@ public final class MotionBlurPass {
         }
         int id = GL11.glGenTextures();
         GL11.glBindTexture(GL11.GL_TEXTURE_2D, id);
-        GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MIN_FILTER, GL11.GL_LINEAR);
-        GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MAG_FILTER, GL11.GL_LINEAR);
-        GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_S, GL12.GL_CLAMP_TO_EDGE);
-        GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_T, GL12.GL_CLAMP_TO_EDGE);
+        boolean hybrid = algorithm == MotionBlur.HYBRID;
+        int filter = hybrid ? GL11.GL_LINEAR : GL11.GL_NEAREST;
+        int wrap = hybrid ? GL12.GL_CLAMP_TO_EDGE : GL11.GL_CLAMP;
+        GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MIN_FILTER, filter);
+        GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MAG_FILTER, filter);
+        GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_S, wrap);
+        GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_T, wrap);
         GL11.glTexImage2D(GL11.GL_TEXTURE_2D, 0, format, width, height, 0, GL11.GL_RGBA, GL11.GL_UNSIGNED_BYTE, (ByteBuffer) null);
         return id;
     }

@@ -105,14 +105,20 @@ public final class CometClient {
     }
 
     public void captureCamera() {
-        if (mods.isEnabled(motionBlur) && host.inWorld() && !host.screenOpen()) {
+        if (motionBlur.hybrid() && mods.isEnabled(motionBlur) && host.inWorld() && !host.screenOpen()) {
             blurPass().capture();
         }
     }
 
-    public void motionBlur() {
+    public void beginBlurFrame() {
+        if (blurPass != null && (!mods.isEnabled(motionBlur) || !host.inWorld() || host.screenOpen())) {
+            blurPass.release();
+        }
+    }
+
+    public void motionBlur(boolean afterPostEffects) {
         if (mods.isEnabled(motionBlur) && host.inWorld() && !host.screenOpen()) {
-            blurPass().apply(motionBlur);
+            if (afterPostEffects != motionBlur.hybrid()) blurPass().apply(motionBlur);
         } else if (blurPass != null) {
             blurPass.release();
         }

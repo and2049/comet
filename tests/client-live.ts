@@ -113,6 +113,8 @@ try {
       'comet$afterLoad',
       'comet$camera',
       'comet$motionBlur',
+      'comet$blurFrame',
+      'comet$postEffectBlur',
     ];
     if (instance.version === '1.8.9')
       hooks.push(
