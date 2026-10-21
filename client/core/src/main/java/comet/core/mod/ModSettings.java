@@ -41,8 +41,9 @@ public final class ModSettings {
     }
 
     public void setEnabled(String id, boolean enabled) {
-        data.mods.put(id, enabled);
-        save();
+        Data next = copyData();
+        next.mods.put(id, enabled);
+        commit(next);
     }
 
     public Boolean option(String id, String key) {

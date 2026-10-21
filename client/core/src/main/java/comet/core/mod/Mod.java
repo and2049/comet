@@ -24,6 +24,15 @@ public abstract class Mod implements TickListener, KeyListener {
         return false;
     }
 
+    protected void disable() {
+        if (settings != null) settings.setEnabled(id(), false);
+        reset();
+    }
+
+    public String status() {
+        return "";
+    }
+
     public List<Option> options() {
         return Collections.emptyList();
     }

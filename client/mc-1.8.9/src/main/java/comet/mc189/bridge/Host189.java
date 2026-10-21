@@ -3,6 +3,7 @@ package comet.mc189.bridge;
 import comet.core.bridge.Canvas;
 import comet.core.bridge.Control;
 import comet.core.bridge.GameHost;
+import comet.core.bridge.LightingBackend;
 import comet.core.bridge.VanillaScreen;
 import comet.core.ui.Screen;
 import comet.mc189.mixin.EntityRendererAccessor;
@@ -24,6 +25,11 @@ import net.minecraft.client.network.NetworkPlayerInfo;
 public final class Host189 implements GameHost {
     private static final ResourceLocation BLUR = new ResourceLocation("shaders/post/blur.json");
     private final Minecraft mc = Minecraft.getMinecraft();
+
+    @Override
+    public LightingBackend lighting() {
+        return Lighting189.INSTANCE;
+    }
 
     @Override
     public boolean inWorld() {

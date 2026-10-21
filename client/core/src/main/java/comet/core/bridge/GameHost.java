@@ -12,6 +12,10 @@ public interface GameHost {
         return false;
     }
 
+    default LightingBackend lighting() {
+        return LightingBackend.NONE;
+    }
+
     void openScreen(Screen screen);
 
     void closeScreen();

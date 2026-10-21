@@ -34,6 +34,7 @@ public final class CoreTests {
             OptionsParityTests.run(root.resolve("options-parity"));
             FpsParityTests.run(root.resolve("fps-parity"));
             KeystrokesParityTests.run(root.resolve("keystrokes-parity"));
+            LightingParityTests.run(root.resolve("lighting-parity"));
             toggles(root.resolve("toggle"));
             settings(root.resolve("settings"));
             presets(root.resolve("presets"));
@@ -692,6 +693,7 @@ public final class CoreTests {
                     case "inWorld": return world;
                     case "screenOpen": return screen != null;
                     case "usingItem": return false;
+                    case "lighting": return comet.core.bridge.LightingBackend.NONE;
                     case "keyDown": return physicalKey == (Integer) args[0] || shift && (Integer) args[0] == Keys.RIGHT_SHIFT;
                     case "controlKey": return new int[] {forwardKey, 30, 31, 32, 57, -100, -99}[((comet.core.bridge.Control) args[0]).ordinal()];
                     case "keyName":

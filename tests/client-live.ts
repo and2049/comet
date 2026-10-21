@@ -105,6 +105,9 @@ try {
       'comet$hotbarScroll',
       'comet$rawMouse',
       'comet$lightmap',
+      'comet$gammaOption',
+      'comet$beforeSave',
+      'comet$afterLoad',
       'comet$camera',
       'comet$motionBlur',
     ];

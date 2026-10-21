@@ -100,8 +100,8 @@ public final class ModOptions {
             int thumb = Math.max(10, track * track / (track + maximum));
             canvas.roundedFill(x + width - 4, y + 30 + (track - thumb) * scroll / maximum, 2, thumb, 1, 0xA0FFFFFF);
         }
-        String footer = !error.isEmpty() ? error : binding != null ? "Escape / Backspace: clear binding" : editing != null ? "Enter: save   Escape: cancel" : "";
-        Text.draw(canvas, footer, x + 10, y + height - 13, 6, error.isEmpty() ? 0xFF999999 : 0xFFEBAFA3);
+        String footer = !error.isEmpty() ? error : binding != null ? "Escape / Backspace: clear binding" : editing != null ? "Enter: save   Escape: cancel" : mod.status();
+        Text.draw(canvas, footer, x + 10, y + height - 13, Text.fit(canvas, footer, 6, width - 20, 4), error.isEmpty() ? 0xFF999999 : 0xFFEBAFA3);
     }
 
     private void saveText() {

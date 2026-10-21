@@ -30,7 +30,7 @@ public final class CometClient {
     private final ClickStats clickStats = new ClickStats();
     private final ToggleSprint toggleSprint;
     private final OldAnimations oldAnimations = new OldAnimations();
-    private final Lighting lighting = new Lighting();
+    private final Lighting lighting;
     private final MotionBlur motionBlur = new MotionBlur();
     private MotionBlurPass blurPass;
     private boolean shiftDown;
@@ -48,6 +48,7 @@ public final class CometClient {
 
     public CometClient(GameHost host) {
         this.host = host;
+        this.lighting = new Lighting(host.lighting());
         this.mods = new ModRegistry(new ModSettings(host.gameDirectory()), clickStats::reset);
         this.toggleSprint = new ToggleSprint(host);
         mods.register(new FpsCounter(host));
