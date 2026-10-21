@@ -53,7 +53,7 @@ public final class CometClient {
         mods.register(new FpsCounter(host));
         mods.register(new CpsCounter(clickStats));
         mods.register(toggleSprint);
-        mods.register(new Keystrokes(host));
+        mods.register(new Keystrokes(host, clickStats));
         mods.register(new Coordinates(host));
         mods.register(new PingCounter(host));
         mods.register(lighting);
