@@ -6,6 +6,7 @@
   "compatibilityLevel": "JAVA_8",
   "client": [
     "LightingMixin",
+    "GammaSettingsMixin",
     "MotionBlurMixin",
     "ClientSettingsMixin",
     "MouseHelperMixin",
@@ -16,7 +17,15 @@
     "GuiScreenMixin",
     "GuiSlotMixin",
     "KeyBindingMixin",
-    "ItemRendererMixin"
+    "MovementMixin",
+    "NametagMixin",
+    "ItemRendererMixin",
+    "EntityRendererMixin",
+    "GuiIngameHealthMixin",
+    "RenderItemMixin",
+    "LayerHeldItemMixin",
+    "ItemFoodAccessor",
+    "PlayerControllerAccessor"
   ],
   "injectors": {
     "defaultRequire": 1

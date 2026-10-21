@@ -8,6 +8,26 @@ public interface GameHost {
 
     boolean screenOpen();
 
+    default boolean usingItem() {
+        return false;
+    }
+
+    default LightingBackend lighting() {
+        return LightingBackend.NONE;
+    }
+
+    default CoordinateBackend coordinates() {
+        return CoordinateBackend.NONE;
+    }
+
+    default MovementBackend movement() {
+        return MovementBackend.NONE;
+    }
+
+    default PingBackend pingBackend() {
+        return PingBackend.NONE;
+    }
+
     void openScreen(Screen screen);
 
     void closeScreen();

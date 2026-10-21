@@ -2,9 +2,12 @@ package comet.core.mod;
 
 import comet.core.bridge.Canvas;
 import comet.core.bridge.GameHost;
+import java.util.Collections;
+import java.util.List;
 
 public final class FpsCounter extends HudMod {
     private static final int PADDING = 3;
+    public static final Option REVERSE = new Option("reverseOrder", "Label before value", false);
     private final GameHost host;
 
     public FpsCounter(GameHost host) {
@@ -52,7 +55,12 @@ public final class FpsCounter extends HudMod {
         text(canvas, label(), PADDING, PADDING);
     }
 
-    private String label() {
-        return host.fps() + " FPS";
+    @Override
+    public List<Option> options() {
+        return Collections.singletonList(REVERSE);
+    }
+
+    public String label() {
+        return option(REVERSE) ? "FPS: " + host.fps() : host.fps() + " FPS";
     }
 }

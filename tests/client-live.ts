@@ -101,14 +101,37 @@ try {
       'comet$state',
       'comet$held',
       'comet$release',
+      'comet$movement',
+      'comet$sprint',
+      'comet$pingNametag',
       'comet$fullscreen',
       'comet$hotbarScroll',
       'comet$rawMouse',
       'comet$lightmap',
+      'comet$gammaOption',
+      'comet$beforeSave',
+      'comet$afterLoad',
       'comet$camera',
       'comet$motionBlur',
+      'comet$blurFrame',
+      'comet$postEffectBlur',
     ];
-    if (instance.version === '1.8.9') hooks.push('comet$oldSwing', 'comet$useSwing');
+    if (instance.version === '1.8.9')
+      hooks.push(
+        'comet$oldSwing',
+        'comet$useSwing',
+        'comet$alwaysSwing',
+        'comet$useWhileDigging',
+        'comet$eyeHeight',
+        'comet$hurtCameraShake',
+        'comet$healthThreshold',
+        'comet$oldGlint',
+        'comet$guiContext',
+        'comet$thirdPersonHeldItems',
+        'comet$oldItemTransforms',
+        'comet$oldBow',
+        'comet$blockEquip',
+      );
     for (const hook of hooks)
       assert(
         classes.some(bytes => bytes.includes(Buffer.from(hook))),

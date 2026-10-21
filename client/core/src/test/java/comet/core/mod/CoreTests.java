@@ -30,6 +30,15 @@ public final class CoreTests {
         Path root = Files.createTempDirectory(base, "comet-core-");
         try {
             cps(root.resolve("cps"));
+            CpsParityTests.run(root.resolve("cps-parity"));
+            OptionsParityTests.run(root.resolve("options-parity"));
+            FpsParityTests.run(root.resolve("fps-parity"));
+            KeystrokesParityTests.run(root.resolve("keystrokes-parity"));
+            LightingParityTests.run(root.resolve("lighting-parity"));
+            CoordinatesParityTests.run(root.resolve("coordinates-parity"));
+            ToggleParityTests.run(root.resolve("toggle-parity"));
+            PingParityTests.run(root.resolve("ping-parity"));
+            VisualsParityTests.run(root.resolve("visuals-parity"));
             toggles(root.resolve("toggle"));
             settings(root.resolve("settings"));
             presets(root.resolve("presets"));
@@ -456,9 +465,12 @@ public final class CoreTests {
         host.screen.draw(host.canvas, -1, -1);
         host.canvas.save("lighting-options");
         int previous = lighting.number(Lighting.MULTIPLIER);
-        host.screen.mouseDown(311, 174, 0);
+        int optionRows = lighting.options().size() + lighting.numbers().size() + lighting.texts().size() + lighting.actions().size();
+        int multiplierY = (300 - Math.min(270, 50 + optionRows * 28)) / 2 + 40
+                + (lighting.options().size() + lighting.numbers().indexOf(Lighting.MULTIPLIER)) * 28;
+        host.screen.mouseDown(291, multiplierY, 0);
         check(lighting.number(Lighting.MULTIPLIER) == previous - 1, "Multiplier minus button changes the numeric setting");
-        host.screen.mouseDown(365, 174, 0);
+        host.screen.mouseDown(395, multiplierY, 0);
         check(lighting.number(Lighting.MULTIPLIER) == previous, "Multiplier plus button changes the numeric setting");
     }
 
@@ -472,11 +484,8 @@ public final class CoreTests {
         check(blur.number(MotionBlur.ALGORITHM) == MotionBlur.HYBRID && blur.number(MotionBlur.STRENGTH) == 5, "Hybrid at medium strength is the default");
         check(MotionBlur.ALGORITHM.display(3).equals("Hybrid") && Lighting.MULTIPLIER.display(2).equals("2x")
                 && MotionBlur.STRENGTH.display(5).equals("5"), "Named algorithms and numeric units display correctly");
-        NumberOption futureAlgorithms = new NumberOption("algorithm", "Algorithm", 3, 3, 4, "", "Hybrid", "Future");
-        check(futureAlgorithms.display(4).equals("Future") && futureAlgorithms.clamp(5) == 4,
-                "Named selectors retain navigation and bounds for future algorithms");
         blur.setNumber(MotionBlur.ALGORITHM, 9);
-        check(blur.number(MotionBlur.ALGORITHM) == MotionBlur.HYBRID, "Algorithm is bounded to the implemented set");
+        check(blur.number(MotionBlur.ALGORITHM) == MotionBlur.CAPPED_BLEND, "Algorithm is bounded to the implemented set");
         blur.setNumber(MotionBlur.STRENGTH, 0);
         check(blur.number(MotionBlur.STRENGTH) == 1, "Strength never drops to an invisible zero");
         for (int oldAlgorithm = 1; oldAlgorithm <= 2; oldAlgorithm++) {
@@ -498,6 +507,36 @@ public final class CoreTests {
         check(Math.abs(Math.pow(MotionBlur.weight(5, 1000.0 / 300), 5) - MotionBlur.weight(5, 1000.0 / 60)) < 1e-6,
                 "Every-frame history has equal decay at 60 and 300 fps");
         check(MotionBlur.weight(1, 16.7) < 0.3F, "Minimum strength is a subtle trail at 60 fps");
+        String[] names = {"Hybrid", "Decaying Max", "Frame Blend", "Capped Blend"};
+        float[][] factors = {
+                {0.72F, 0.75F, 0.78F, 0.81F, 0.84F, 0.87F, 0.90F, 0.93F, 0.96F, 0.99F},
+                {0.9F, 0.8F, 0.7F, 0.6F, 0.5F, 0.4F, 0.3F, 0.2F, 0.1F, 0.01F},
+                {0.1F, 0.2F, 0.3F, 0.4F, 0.5F, 0.6F, 0.7F, 0.8F, 0.9F, 1F}
+        };
+        for (int method = MotionBlur.HYBRID; method <= MotionBlur.CAPPED_BLEND; method++) {
+            blur.setNumber(MotionBlur.ALGORITHM, method);
+            check(MotionBlur.ALGORITHM.display(method).equals(names[method - MotionBlur.HYBRID]), "Methods have descriptive names");
+            check(blur.hybrid() == (method == MotionBlur.HYBRID), "Only Hybrid uses camera reprojection");
+            for (int strength = 1; strength <= 10; strength++) {
+                blur.setNumber(MotionBlur.STRENGTH, strength);
+                if (!blur.hybrid()) check(Math.abs(blur.frameFactor() - factors[method - MotionBlur.DECAYING_MAX][strength - 1]) < 1e-6,
+                        "Frame coefficient matches the reference at method " + method + " strength " + strength);
+            }
+            client.mods().settings().createPreset(names[method - MotionBlur.HYBRID]);
+            blur.setNumber(MotionBlur.ALGORITHM, MotionBlur.HYBRID);
+            blur.setNumber(MotionBlur.STRENGTH, 1);
+            client.mods().loadPreset(names[method - MotionBlur.HYBRID]);
+            MotionBlur restored = (MotionBlur) find(new CometClient(host.bridge), "motionBlur");
+            check(restored.number(MotionBlur.ALGORITHM) == method && restored.number(MotionBlur.STRENGTH) == 10,
+                    "Every blur method and strength survives preset loading and restart");
+        }
+        comet.core.ui.ModOptions options = new comet.core.ui.ModOptions(blur, host.bridge);
+        options.draw(new TestCanvas(512, 300), 512, 300, 0, 0);
+        int algorithmY = (300 - 106) / 2 + 40;
+        options.click(291, algorithmY, 0);
+        check(blur.number(MotionBlur.ALGORITHM) == MotionBlur.FRAME_BLEND, "Algorithm selector navigates named methods");
+        options.click(395, algorithmY, 0);
+        check(blur.number(MotionBlur.ALGORITHM) == MotionBlur.CAPPED_BLEND, "Algorithm selector reaches the last named method");
         float[] projection = perspective(70, 16F / 9F);
         float[] still = Reprojection.matrix(projection, rotationY(0.4F), projection, rotationY(0.4F));
         for (float[] point : new float[][] {{0, 0}, {0.7F, -0.3F}, {-1, 1}}) {
@@ -684,6 +723,11 @@ public final class CoreTests {
                     case "version": return version;
                     case "inWorld": return world;
                     case "screenOpen": return screen != null;
+                    case "usingItem": return false;
+                    case "lighting": return comet.core.bridge.LightingBackend.NONE;
+                    case "coordinates": return comet.core.bridge.CoordinateBackend.NONE;
+                    case "movement": return comet.core.bridge.MovementBackend.NONE;
+                    case "pingBackend": return comet.core.bridge.PingBackend.NONE;
                     case "keyDown": return physicalKey == (Integer) args[0] || shift && (Integer) args[0] == Keys.RIGHT_SHIFT;
                     case "controlKey": return new int[] {forwardKey, 30, 31, 32, 57, -100, -99}[((comet.core.bridge.Control) args[0]).ordinal()];
                     case "keyName":

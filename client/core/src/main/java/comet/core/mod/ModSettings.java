@@ -41,8 +41,9 @@ public final class ModSettings {
     }
 
     public void setEnabled(String id, boolean enabled) {
-        data.mods.put(id, enabled);
-        save();
+        Data next = copyData();
+        next.mods.put(id, enabled);
+        commit(next);
     }
 
     public Boolean option(String id, String key) {
@@ -51,13 +52,14 @@ public final class ModSettings {
     }
 
     public void setOption(String id, String key, boolean value) {
-        Map<String, Boolean> values = data.options.get(id);
+        Data next = copyData();
+        Map<String, Boolean> values = next.options.get(id);
         if (values == null) {
             values = new HashMap<String, Boolean>();
-            data.options.put(id, values);
+            next.options.put(id, values);
         }
         values.put(key, value);
-        save();
+        commit(next);
     }
 
     public Layout layout(String id) {
@@ -72,6 +74,17 @@ public final class ModSettings {
     public Integer number(String id, String key) {
         Map<String, Integer> values = data.numbers.get(id);
         return values == null ? null : values.get(key);
+    }
+
+    public String text(String id, String key) {
+        Map<String, String> values = data.texts.get(id);
+        return values == null ? null : values.get(key);
+    }
+
+    public void setText(String id, String key, String value) {
+        Data next = copyData();
+        next.texts.computeIfAbsent(id, ignored -> new HashMap<String, String>()).put(key, value);
+        commit(next);
     }
 
     public void setNumber(String id, String key, int value) {
@@ -106,7 +119,7 @@ public final class ModSettings {
 
     public boolean presetModified() {
         Snapshot saved = data.presets.get(data.activePreset);
-        return !data.mods.equals(saved.mods) || !data.options.equals(saved.options) || !data.numbers.equals(saved.numbers) || !data.hud.equals(saved.hud);
+        return !data.mods.equals(saved.mods) || !data.options.equals(saved.options) || !data.numbers.equals(saved.numbers) || !data.texts.equals(saved.texts) || !data.hud.equals(saved.hud);
     }
 
     public void createPreset(String name) {
@@ -291,6 +304,7 @@ public final class ModSettings {
         Map<String, Layout> hud = new HashMap<String, Layout>();
         Map<String, Map<String, Boolean>> options = new HashMap<String, Map<String, Boolean>>();
         Map<String, Map<String, Integer>> numbers = new HashMap<String, Map<String, Integer>>();
+        Map<String, Map<String, String>> texts = new HashMap<String, Map<String, String>>();
 
         Snapshot() {
         }
@@ -334,6 +348,13 @@ public final class ModSettings {
                 }
             }
             numbers = copiedNumbers;
+            Map<String, Map<String, String>> copiedTexts = new HashMap<String, Map<String, String>>();
+            if (source.texts != null) {
+                for (Map.Entry<String, Map<String, String>> entry : source.texts.entrySet()) {
+                    if (entry.getValue() != null) copiedTexts.put(entry.getKey(), new HashMap<String, String>(entry.getValue()));
+                }
+            }
+            texts = copiedTexts;
         }
     }
 

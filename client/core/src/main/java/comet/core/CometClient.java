@@ -4,6 +4,7 @@ import comet.core.bridge.Canvas;
 import comet.core.bridge.GameHost;
 import comet.core.bridge.Keys;
 import comet.core.mod.CpsCounter;
+import comet.core.mod.ClickStats;
 import comet.core.mod.FpsCounter;
 import comet.core.mod.HudLayout;
 import comet.core.mod.HudMod;
@@ -26,9 +27,11 @@ import comet.core.render.MotionBlurPass;
 public final class CometClient {
     private final GameHost host;
     private final ModRegistry mods;
+    private final ClickStats clickStats = new ClickStats();
     private final ToggleSprint toggleSprint;
     private final OldAnimations oldAnimations = new OldAnimations();
-    private final Lighting lighting = new Lighting();
+    private final Lighting lighting;
+    private final PingCounter pingCounter;
     private final MotionBlur motionBlur = new MotionBlur();
     private MotionBlurPass blurPass;
     private boolean shiftDown;
@@ -46,14 +49,16 @@ public final class CometClient {
 
     public CometClient(GameHost host) {
         this.host = host;
-        this.mods = new ModRegistry(new ModSettings(host.gameDirectory()));
+        this.lighting = new Lighting(host.lighting());
+        this.mods = new ModRegistry(new ModSettings(host.gameDirectory()), clickStats::reset);
         this.toggleSprint = new ToggleSprint(host);
         mods.register(new FpsCounter(host));
-        mods.register(new CpsCounter());
+        mods.register(new CpsCounter(clickStats));
         mods.register(toggleSprint);
-        mods.register(new Keystrokes(host));
+        mods.register(new Keystrokes(host, clickStats));
         mods.register(new Coordinates(host));
-        mods.register(new PingCounter(host));
+        pingCounter = new PingCounter(host);
+        mods.register(pingCounter);
         mods.register(lighting);
         mods.register(motionBlur);
         if (host.version().startsWith("1.8")) {
@@ -79,7 +84,9 @@ public final class CometClient {
             openModMenu();
         }
         shiftDown = down;
+        if (host.screenOpen()) clickStats.reset();
         if (host.inWorld()) {
+            clickStats.prune();
             mods.tick();
         } else {
             mods.reset();
@@ -88,6 +95,7 @@ public final class CometClient {
 
     public void keyState(int key, boolean pressed) {
         if (host.inWorld() && !host.screenOpen()) {
+            clickStats.record(key, pressed, key == Keys.MOUSE_LEFT && pressed && host.usingItem());
             mods.keyState(key, pressed);
         }
     }
@@ -97,14 +105,20 @@ public final class CometClient {
     }
 
     public void captureCamera() {
-        if (mods.isEnabled(motionBlur) && host.inWorld() && !host.screenOpen()) {
+        if (motionBlur.hybrid() && mods.isEnabled(motionBlur) && host.inWorld() && !host.screenOpen()) {
             blurPass().capture();
         }
     }
 
-    public void motionBlur() {
+    public void beginBlurFrame() {
+        if (blurPass != null && (!mods.isEnabled(motionBlur) || !host.inWorld() || host.screenOpen())) {
+            blurPass.release();
+        }
+    }
+
+    public void motionBlur(boolean afterPostEffects) {
         if (mods.isEnabled(motionBlur) && host.inWorld() && !host.screenOpen()) {
-            blurPass().apply(motionBlur);
+            if (afterPostEffects != motionBlur.hybrid()) blurPass().apply(motionBlur);
         } else if (blurPass != null) {
             blurPass.release();
         }
@@ -118,7 +132,25 @@ public final class CometClient {
     }
 
     public void releaseKeys() {
+        clickStats.reset();
+        toggleSprint.releaseKeys();
         mods.releaseKeys();
+    }
+
+    public ToggleSprint toggleSprint() {
+        return toggleSprint;
+    }
+
+    public PingCounter pingCounter() {
+        return pingCounter;
+    }
+
+    public OldAnimations oldAnimations() {
+        return oldAnimations;
+    }
+
+    public ClickStats clickStats() {
+        return clickStats;
     }
 
     public boolean holdsSprint() {

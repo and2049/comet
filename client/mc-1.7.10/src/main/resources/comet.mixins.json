@@ -6,6 +6,7 @@
   "compatibilityLevel": "JAVA_8",
   "client": [
     "LightingMixin",
+    "GammaSettingsMixin",
     "MotionBlurMixin",
     "ClientSettingsMixin",
     "MouseHelperMixin",
@@ -15,7 +16,9 @@
     "GuiButtonMixin",
     "GuiScreenMixin",
     "GuiSlotMixin",
-    "KeyBindingMixin"
+    "KeyBindingMixin",
+    "MovementMixin",
+    "NametagMixin"
   ],
   "injectors": {
     "defaultRequire": 1
