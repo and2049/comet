@@ -5,6 +5,7 @@ import comet.core.bridge.Control;
 import comet.core.bridge.CoordinateBackend;
 import comet.core.bridge.GameHost;
 import comet.core.bridge.LightingBackend;
+import comet.core.bridge.MovementBackend;
 import comet.core.bridge.VanillaScreen;
 import comet.core.ui.Screen;
 import comet.mc189.mixin.EntityRendererAccessor;
@@ -36,6 +37,11 @@ public final class Host189 implements GameHost {
     @Override
     public LightingBackend lighting() {
         return Lighting189.INSTANCE;
+    }
+
+    @Override
+    public MovementBackend movement() {
+        return Movement189.INSTANCE;
     }
 
     @Override

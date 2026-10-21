@@ -125,7 +125,12 @@ public final class CometClient {
 
     public void releaseKeys() {
         clickStats.reset();
+        toggleSprint.releaseKeys();
         mods.releaseKeys();
+    }
+
+    public ToggleSprint toggleSprint() {
+        return toggleSprint;
     }
 
     public ClickStats clickStats() {

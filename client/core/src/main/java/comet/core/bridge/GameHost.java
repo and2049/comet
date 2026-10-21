@@ -20,6 +20,10 @@ public interface GameHost {
         return CoordinateBackend.NONE;
     }
 
+    default MovementBackend movement() {
+        return MovementBackend.NONE;
+    }
+
     void openScreen(Screen screen);
 
     void closeScreen();

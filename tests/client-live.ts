@@ -101,6 +101,8 @@ try {
       'comet$state',
       'comet$held',
       'comet$release',
+      'comet$movement',
+      'comet$sprint',
       'comet$fullscreen',
       'comet$hotbarScroll',
       'comet$rawMouse',

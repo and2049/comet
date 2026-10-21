@@ -16,7 +16,8 @@
     "GuiButtonMixin",
     "GuiScreenMixin",
     "GuiSlotMixin",
-    "KeyBindingMixin"
+    "KeyBindingMixin",
+    "MovementMixin"
   ],
   "injectors": {
     "defaultRequire": 1

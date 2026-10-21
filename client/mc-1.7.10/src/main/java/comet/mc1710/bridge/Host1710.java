@@ -5,6 +5,7 @@ import comet.core.bridge.Control;
 import comet.core.bridge.CoordinateBackend;
 import comet.core.bridge.GameHost;
 import comet.core.bridge.LightingBackend;
+import comet.core.bridge.MovementBackend;
 import comet.core.bridge.VanillaScreen;
 import comet.core.ui.Screen;
 import comet.mc1710.mixin.MinecraftAccessor;
@@ -38,6 +39,11 @@ public final class Host1710 implements GameHost {
     @Override
     public LightingBackend lighting() {
         return Lighting1710.INSTANCE;
+    }
+
+    @Override
+    public MovementBackend movement() {
+        return Movement1710.INSTANCE;
     }
 
     @Override

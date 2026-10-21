@@ -17,6 +17,7 @@
     "GuiScreenMixin",
     "GuiSlotMixin",
     "KeyBindingMixin",
+    "MovementMixin",
     "ItemRendererMixin"
   ],
   "injectors": {
