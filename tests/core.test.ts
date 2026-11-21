@@ -22,7 +22,7 @@ const windows: Platform = { os: 'windows', arch: 'x86_64', version: '10.0' };
 const mac: Platform = { os: 'osx', arch: 'aarch64', version: '23.0' };
 import { officialUrl } from '../src/main/net';
 import { gameDirectory, launchArguments, type Installation } from '../src/main/minecraft';
-import type { Instance } from '../src/shared';
+import { cometClientId, effectiveClientId, type Instance } from '../src/shared';
 
 const custom: Instance = {
   id: 'survival',
@@ -158,6 +158,9 @@ describe('trust boundaries', () => {
       expect(() => settingsFrom({ ...defaults, ...patch })).toThrow();
     for (const javaPath of ['C:\\Java\\bin\\javaw.exe', '/usr/lib/jvm/java-8/bin/java', '/Library/Java/Home/bin/javaw'])
       expect(settingsFrom({ ...defaults, javaPath }).javaPath).toBe(javaPath);
+    expect(effectiveClientId(defaults)).toBe(cometClientId);
+    const override = '00000000-0000-4000-8000-000000000000';
+    expect(effectiveClientId(settingsFrom({ ...defaults, clientId: override }))).toBe(override);
     expect(javaExecutable('C:\\Java\\bin\\javaw.exe')).toBe('C:\\Java\\bin\\java.exe');
     expect(javaExecutable('/opt/jre/bin/javaw')).toBe('/opt/jre/bin/java');
     expect(javaExecutable('/opt/jre/bin/java')).toBe('/opt/jre/bin/java');

@@ -110,8 +110,10 @@ async function main() {
       await evaluate('(async () => (await window.comet.invoke({ type: "snapshot" })).settings.memoryMb)()'),
       3072,
     );
-    const loginError = await evaluate(`window.comet.invoke({ type: 'login' }).then(() => '', error => error.message)`);
-    assert.match(loginError, /approved Microsoft|secure storage/);
+    assert.match(
+      await evaluate('document.querySelector(".settings-panel input").placeholder'),
+      /^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/,
+    );
     const badInstance = await evaluate(
       `window.comet.invoke({ type: 'folder', id: '../../outside' }).then(() => '', error => error.message)`,
     );
@@ -120,7 +122,7 @@ async function main() {
     assert.match(await evaluate('document.querySelector("pre").textContent'), /No game output/);
     assert.deepEqual(errors, []);
     console.log(
-      `Electron smoke passed: navigation, window controls, selection, filtering, new-instance page, draft and query validation, settings IPC, auth setup error, traversal rejection, console. Screenshot: ${screenshotPath}`,
+      `Electron smoke passed: navigation, window controls, selection, filtering, new-instance page, draft and query validation, settings IPC, built-in client ID, traversal rejection, console. Screenshot: ${screenshotPath}`,
     );
   } finally {
     clearTimeout(timeout);

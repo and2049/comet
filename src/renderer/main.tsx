@@ -15,7 +15,7 @@ import type {
   Snapshot,
   VersionInfo,
 } from '../shared';
-import { optifineLabels } from '../shared';
+import { cometClientId, optifineLabels } from '../shared';
 import './style.css';
 
 declare global {
@@ -786,16 +786,16 @@ function App(): React.JSX.Element {
                       : 'Sign in with an account that owns Minecraft: Java Edition.'}
                   </p>
                   <label>
-                    Comet application (client) ID
+                    Application (client) ID override
                     <input
                       value={draft.clientId}
-                      placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                      placeholder={cometClientId}
                       onChange={e => setDraft({ ...draft, clientId: e.target.value.trim() })}
                     />
                   </label>
                   <p className="hint">
-                    Requires your own Entra public-client registration and Minecraft Services approval. No client secret
-                    is needed.
+                    Leave empty to use Comet's approved ID. An override needs its own Entra public-client registration
+                    and Minecraft Services approval.
                   </p>
                   <button disabled={locked} onClick={() => void run({ type: state.account ? 'logout' : 'login' })}>
                     {state.account ? 'Sign out' : 'Sign in with Microsoft'}

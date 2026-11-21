@@ -13,7 +13,7 @@ import { createInstance, loadInstances, removeInstance } from './instances.js';
 import { importArchive, importUrl } from './imports.js';
 import { installModrinth, modrinthId, projectVersions, searchModpacks } from './modrinth.js';
 import { addOptifineFile, availability, fetchOptifine, mergeClient, prepareClient } from './client.js';
-import type { Instance, Snapshot } from '../shared.js';
+import { effectiveClientId, type Instance, type Snapshot } from '../shared.js';
 
 app.setName('Comet');
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -87,7 +87,7 @@ async function initialize(): Promise<void> {
   try {
     if (safeStorage.isEncryptionAvailable()) {
       session = sessionFrom(JSON.parse(safeStorage.decryptString(await readFile(path.join(root, 'account.bin')))));
-      if (session.clientId === state.settings.clientId) state.account = session.account;
+      if (session.clientId === effectiveClientId(state.settings)) state.account = session.account;
       else session = null;
     }
   } catch (error) {
@@ -146,7 +146,7 @@ async function command(input: unknown): Promise<Snapshot> {
   if (state.busy) throw new Error('Wait for the current operation to finish.');
   if (type === 'settings') {
     const next = settingsFrom(request.settings);
-    if (next.clientId !== state.settings.clientId) {
+    if (effectiveClientId(next) !== effectiveClientId(state.settings)) {
       await rm(path.join(root, 'account.bin'), { force: true });
       session = null;
       state.account = null;
@@ -228,7 +228,7 @@ async function command(input: unknown): Promise<Snapshot> {
       loginController = new AbortController();
       status('Waiting for Microsoft sign-in');
       const next = await login(
-        state.settings.clientId,
+        effectiveClientId(state.settings),
         code => {
           state.deviceCode = code;
           publish();
@@ -245,7 +245,7 @@ async function command(input: unknown): Promise<Snapshot> {
       await refreshClient();
       status(`OptiFine for ${instance.version} is ready`);
     } else if (instance) {
-      if (type === 'launch' && (!session || session.clientId !== state.settings.clientId))
+      if (type === 'launch' && (!session || session.clientId !== effectiveClientId(state.settings)))
         throw new Error('Sign in with Microsoft before launching.');
       let installation = await install(root, instance, status);
       let loaderVersion = instance.loaderVersion;
