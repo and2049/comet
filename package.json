@@ -13,6 +13,7 @@
     "test:metadata": "bun tests/metadata-live.ts",
     "test:install": "bun tests/install-live.ts",
     "test:client": "bun tests/client-live.ts",
+    "package": "bun run build && electron-packager . Comet --out=out --overwrite --no-prune --ignore='^/(?!dist(/|$)|package[.]json$)'",
     "typecheck": "tsc -p tsconfig.main.json --noEmit && tsc --noEmit",
     "preview": "vite --host 127.0.0.1",
     "format": "prettier --write .",
@@ -23,6 +24,7 @@
     "react-dom": "^19.2.0"
   },
   "devDependencies": {
+    "@electron/packager": "^20.3.0",
     "@types/node": "^24.0.0",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
