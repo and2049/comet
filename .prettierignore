@@ -6,3 +6,4 @@ client/**/build
 client/**/bin
 client/**/.gradle
 client/**/run
+out

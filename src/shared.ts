@@ -31,6 +31,10 @@ export interface Settings {
   memoryMb: number;
   minimizeOnLaunch: boolean;
 }
+export const cometClientId = 'e02f8a59-7df9-4a07-b6af-6bbc17eb6b56';
+export function effectiveClientId(settings: Settings): string {
+  return settings.clientId || cometClientId;
+}
 export interface Account {
   id: string;
   name: string;
